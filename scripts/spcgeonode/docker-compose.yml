@@ -162,7 +162,7 @@ services:
     image: olivierdalang/pgdumper:latest
     build: ./pgdumper/
     volumes:
-      - pgdumps:/spcgeonode-pgdumps/
+      - ./pgdumps:/spcgeonode-pgdumps/
     restart: on-failure
     environment:
       - DATABASE=${GEONODE_GEODATABASE}
