@@ -1110,7 +1110,7 @@ msgstr "Supprimer des favoris"
 
 #: geonode/contrib/favorite/templates/favorite/_favorite_js.html:26
 msgid "Add to Favorites"
-msgstr "Add to Favorites"
+msgstr "Ajouter aux Favoris"
 
 #: geonode/contrib/favorite/templates/favorite/favorite_list.html:8
 msgid "Favorites for"
@@ -1982,7 +1982,7 @@ msgstr "Procédure guidée"
 #: geonode/layers/templates/layers/layer_detail.html:440
 #: geonode/maps/templates/maps/map_detail.html:150
 msgid "Advanced Edit"
-msgstr ""
+msgstr "Édition Avancée"
 
 #: geonode/contrib/worldmap/wm_extra/templates/wm_extra/maps/map_detail.html:154
 #: geonode/documents/templates/documents/document_detail.html:144
@@ -2246,7 +2246,7 @@ msgstr "Ressource Externe"
 
 #: geonode/documents/templates/documents/document_detail.html:72
 msgid "Rate this document"
-msgstr "Valuta questo documento"
+msgstr "Noter ce document"
 
 #: geonode/documents/templates/documents/document_detail.html:104
 #: geonode/documents/templates/documents/document_detail.html:106
@@ -2284,12 +2284,12 @@ msgstr "Metadonnées complètes"
 #: geonode/documents/templates/documents/document_detail.html:184
 #: geonode/layers/templates/layers/layer_detail.html:526
 msgid "Text format"
-msgstr "Format"
+msgstr "Format Texte"
 
 #: geonode/documents/templates/documents/document_detail.html:185
 #: geonode/layers/templates/layers/layer_detail.html:527
 msgid "HTML format"
-msgstr "Format"
+msgstr "Format Html"
 
 #: geonode/documents/templates/documents/document_detail.html:189
 #: geonode/layers/templates/layers/layer_detail.html:532
@@ -3663,7 +3663,7 @@ msgstr "Mettre à jour les attributs et les statistiques"
 
 #: geonode/layers/templates/layers/layer_detail.html:674
 msgid "Clear the Server Cache of this layer"
-msgstr "Supprimer le cache du serveur de cette couche"
+msgstr "Supprimer le cache du serveur pour cette couche"
 
 #: geonode/layers/templates/layers/layer_detail.html:675
 msgid "Click the button below to wipe the tile-cache of this layer."
@@ -3671,7 +3671,7 @@ msgstr "Cliquez sur le bouton ci-dessous pour supprimer le cache de tuiles de ce
 
 #: geonode/layers/templates/layers/layer_detail.html:676
 msgid "Empty Tiled-Layer Cache"
-msgstr "Svuota la tile-cache del layer"
+msgstr "Supprimer le Tile-Cache de la Couche"
 
 #: geonode/layers/templates/layers/layer_detail.html:685
 #: geonode/layers/templates/layers/layer_metadata_upload.html:101
@@ -5120,7 +5120,7 @@ msgstr "Lieux"
 #: geonode/services/serviceprocessors/arcgis.py:115
 #: geonode/services/serviceprocessors/wms.py:150
 msgid "Not provided"
-msgstr "Non fournit"
+msgstr "Non fourni"
 
 #: geonode/people/templates/people/profile_detail.html:97
 #: geonode/templates/base.html:373 geonode/templates/metadata_detail.html:145
@@ -5723,7 +5723,7 @@ msgstr "Créer une carte"
 #: geonode/templates/500.html:188 geonode/templates/base.html:198
 #: geonode/templates/base.html:353
 msgid "Add User"
-msgstr "Ajouter un utilisateur utente"
+msgstr "Ajouter un utilisateur"
 
 #: geonode/templates/500.html:259
 msgid "Menu"
