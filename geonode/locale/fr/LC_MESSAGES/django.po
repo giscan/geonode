@@ -33,7 +33,7 @@ msgstr ""
 "Project-Id-Version: GeoNode\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2019-07-26 08:27+0400\n"
-"PO-Revision-Date: 2019-07-26 18:21+0400\n"
+"PO-Revision-Date: 2019-07-27 10:31+0400\n"
 "Last-Translator: Sylvain POULAIN <sylvain.poulain@giscan.com>\n"
 "Language-Team: French\n"
 "MIME-Version: 1.0\n"
@@ -1287,7 +1287,7 @@ msgstr "Groupe"
 #: geonode/contrib/monitoring/frontend/index.html:72
 #: geonode/groups/models.py:41 geonode/templates/base.html:191
 msgid "Group Categories"
-msgstr "Categories Groupes"
+msgstr "Catégories des Groupes"
 
 #: geonode/contrib/monitoring/frontend/index.html:93
 #: geonode/templates/500.html:114 geonode/templates/base.html:280
@@ -1313,7 +1313,7 @@ msgstr ""
 #: geonode/contrib/worldmap/wm_extra/templates/wm_extra/maps/mobile.html:30
 #: geonode/templates/500.html:198 geonode/templates/base.html:379
 msgid "Powered by"
-msgstr "Propulsé par"
+msgstr "Basé sur"
 
 #: geonode/contrib/monitoring/frontend/index.html:142
 #: geonode/templates/500.html:198 geonode/templates/base.html:379
@@ -1466,7 +1466,7 @@ msgstr "Autre"
 #: geonode/contrib/monitoring/models.py:196
 #: geonode/contrib/monitoring/models.py:232
 msgid "Rate"
-msgstr ""
+msgstr "Évaluation"
 
 #: geonode/contrib/monitoring/models.py:197
 #: geonode/contrib/monitoring/models.py:234
@@ -1532,7 +1532,7 @@ msgstr "Tout"
 #: geonode/contrib/monitoring/models.py:356
 #| msgid "List of resources using this document:"
 msgid "List of resources affected"
-msgstr ""
+msgstr "Liste des ressources affectées"
 
 #: geonode/contrib/monitoring/models.py:363
 msgid "Response processing time in ms"
@@ -1571,7 +1571,7 @@ msgstr "Erreur"
 
 #: geonode/contrib/monitoring/models.py:852
 msgid "Fatal"
-msgstr ""
+msgstr "Erreur fatale"
 
 #: geonode/contrib/monitoring/models.py:866
 msgid "Expected min/max values for user configuration"
@@ -1626,7 +1626,7 @@ msgstr ""
 
 #: geonode/contrib/monitoring/templates/pinax/notifications/monitoring_alert/full.txt:3
 msgid "Hi,"
-msgstr ""
+msgstr "Bonjour,"
 
 #: geonode/contrib/monitoring/templates/pinax/notifications/monitoring_alert/full.txt:5
 #: geonode/contrib/monitoring/templates/pinax/notifications/monitoring_alert/short.txt:3
@@ -1650,7 +1650,7 @@ msgstr ""
 #: geonode/contrib/monitoring/templates/pinax/notifications/monitoring_alert/short.txt:7
 #: geonode/social/templates/social/_activity_item.html:31
 msgid "ago"
-msgstr ""
+msgstr "il y a"
 
 #: geonode/contrib/monitoring/templates/pinax/notifications/monitoring_alert/full.txt:10
 #: geonode/contrib/monitoring/templates/pinax/notifications/monitoring_alert/short.txt:7
@@ -1672,7 +1672,7 @@ msgstr ""
 
 #: geonode/contrib/worldmap/gazetteer/models.py:15
 msgid "Layer Name"
-msgstr ""
+msgstr "Nom de la Couche"
 
 #: geonode/contrib/worldmap/gazetteer/models.py:16
 msgid "Layer Attribute"
@@ -1695,7 +1695,7 @@ msgstr ""
 
 #: geonode/contrib/worldmap/gazetteer/models.py:22
 msgid "Start Date"
-msgstr ""
+msgstr "Date de Départ"
 
 #: geonode/contrib/worldmap/gazetteer/models.py:23
 #, fuzzy
@@ -1718,7 +1718,7 @@ msgstr "Projection"
 #: geonode/contrib/worldmap/gazetteer/models.py:27
 #| msgid "Retry"
 msgid "Geometry"
-msgstr ""
+msgstr "Géométrie"
 
 #: geonode/contrib/worldmap/gazetteer/models.py:28
 msgid "User Name"
@@ -1735,7 +1735,7 @@ msgstr ""
 #: geonode/contrib/worldmap/gazetteer/templates/gazetteer/edit_layer_gazetteer.html:34
 #| msgid "Download Metadata"
 msgid "Optional Parameters"
-msgstr ""
+msgstr "Paramètres Optionnels"
 
 #: geonode/contrib/worldmap/gazetteer/templates/gazetteer/edit_layer_gazetteer.html:37
 msgid "Custom Gazetteer Name"
@@ -1902,7 +1902,7 @@ msgstr ""
 
 #: geonode/contrib/worldmap/wm_extra/templates/wm_extra/endpoint_added.html:16
 msgid "Thanks"
-msgstr ""
+msgstr "Merci"
 
 #: geonode/contrib/worldmap/wm_extra/templates/wm_extra/endpoint_added.html:16
 msgid "for suggesting the endpoint"
@@ -1930,14 +1930,14 @@ msgstr ""
 #: geonode/contrib/worldmap/wm_extra/templates/wm_extra/maps/map_detail.html:79
 #: geonode/maps/templates/maps/map_detail.html:82
 msgid "Rate this Map"
-msgstr "Noter cette carte"
+msgstr "Évaluer cette carte"
 
 #: geonode/contrib/worldmap/wm_extra/templates/wm_extra/maps/map_detail.html:83
 #: geonode/documents/templates/documents/document_detail.html:76
 #: geonode/layers/templates/layers/layer_detail.html:234
 #: geonode/maps/templates/maps/map_detail.html:86
 msgid "Average Rating"
-msgstr "Note moyenne"
+msgstr "Évaluation moyenne"
 
 #: geonode/contrib/worldmap/wm_extra/templates/wm_extra/maps/map_detail.html:97
 #: geonode/contrib/worldmap/wm_extra/templates/wm_extra/maps/map_detail.html:112
@@ -2002,7 +2002,7 @@ msgstr ""
 #: geonode/maps/templates/layouts/map_panels.html:74
 #: geonode/maps/templates/maps/map_detail.html:164
 msgid "Edit"
-msgstr ""
+msgstr "Édition"
 
 #: geonode/contrib/worldmap/wm_extra/templates/wm_extra/maps/map_detail.html:162
 #: geonode/documents/templates/documents/document_detail.html:155
@@ -2019,7 +2019,7 @@ msgstr "Enlever"
 #: geonode/contrib/worldmap/wm_extra/templates/wm_extra/maps/map_detail.html:185
 #: geonode/maps/templates/maps/map_detail.html:192
 msgid "Map Layers"
-msgstr "Cocuhes de la Carte"
+msgstr "Couches de la Carte"
 
 #: geonode/contrib/worldmap/wm_extra/templates/wm_extra/maps/map_detail.html:186
 #: geonode/maps/templates/maps/map_detail.html:193
@@ -2299,10 +2299,8 @@ msgid "Standard Metadata - XML format"
 msgstr "Télécharger la Métadonnée"
 
 #: geonode/documents/templates/documents/document_detail.html:205
-#, fuzzy
-#| msgid "Resource using this document"
 msgid "Resources using this document"
-msgstr "Lister des ressources utilisant ce document"
+msgstr "Ressources utilisant ce document"
 
 #: geonode/documents/templates/documents/document_detail.html:207
 msgid "List of resources using this document:"
@@ -2360,7 +2358,7 @@ msgstr "pour %(document_title)s"
 #: geonode/layers/templates/layers/layer_metadata.html:21
 #: geonode/maps/templates/maps/map_metadata.html:22
 msgid "Completeness"
-msgstr "Complétude"
+msgstr "Complément"
 
 #: geonode/documents/templates/documents/document_metadata.html:21
 #: geonode/layers/templates/layers/layer_metadata.html:23
@@ -2417,12 +2415,12 @@ msgstr "<< Retour"
 #: geonode/layers/templates/layers/layer_metadata.html:99
 #: geonode/maps/templates/maps/map_metadata.html:80
 msgid "Next >>"
-msgstr "Suivant >"
+msgstr "Suivant >>"
 
 #: geonode/documents/templates/documents/document_metadata.html:92
 #: geonode/documents/templates/documents/document_metadata_advanced.html:105
 msgid "Select an option"
-msgstr "Selectionner une option"
+msgstr "Sélectionner une option"
 
 #: geonode/documents/templates/documents/document_metadata_advanced.html:17
 #: geonode/layers/templates/layers/layer_metadata_advanced.html:17
@@ -2806,7 +2804,7 @@ msgstr "Les noms d'utilisateurs suivants ne sont pas valides: s% (erreurs); non 
 #: geonode/templates/metadata_detail.html:269
 #: geonode/templates/metadata_detail.html:345
 msgid "Name"
-msgstr "Nome"
+msgstr "Nom"
 
 #: geonode/groups/models.py:59
 msgid "Public"
@@ -2836,7 +2834,7 @@ msgstr "Logo"
 #: geonode/people/templates/people/profile_detail.html:67
 #: geonode/templates/invitations/forms/_invite.html:14
 msgid "Email"
-msgstr "Email"
+msgstr "Courriel"
 
 #: geonode/groups/models.py:84 geonode/people/forms.py:83
 msgid "A space or comma-separated list of keywords"
@@ -2949,7 +2947,7 @@ msgstr "Créer le groupe"
 
 #: geonode/groups/templates/groups/group_create.html:6
 msgid "groups create"
-msgstr "une Carte a été créée"
+msgstr "un groupe a été créée"
 
 #: geonode/groups/templates/groups/group_detail.html:16
 msgid "groups"
@@ -3642,7 +3640,7 @@ msgstr "Les styles suivants sont associés à cette couche. Choisissez un style 
 #: geonode/layers/templates/layers/layer_detail.html:653
 #: geonode/qgis_server/templates/qgis_server/forms/qml_style.html:30
 msgid "(default style)"
-msgstr "(style prédéfinit)"
+msgstr "(style prédéfini)"
 
 #: geonode/layers/templates/layers/layer_detail.html:646
 #: geonode/layers/templates/layers/layer_detail.html:660
@@ -3702,7 +3700,7 @@ msgstr "Traitement en cours…"
 
 #: geonode/layers/templates/layers/layer_detail.html:714
 msgid "Updating Permissions..."
-msgstr "Aggiornamento Permessi..."
+msgstr "Mise à jour des Permissions..."
 
 #: geonode/layers/templates/layers/layer_granule_remove.html:9
 msgid "Remove Mosaic Granules"
@@ -3820,7 +3818,7 @@ msgstr "Les envois suivants sont incomplets"
 #: geonode/layers/templates/layers/layer_style_upload.html:37
 #: geonode/layers/templates/upload/layer_upload.html:44
 msgid "last updated on"
-msgstr "dernière mise à jour sur"
+msgstr "dernière mise à jour"
 
 #: geonode/layers/templates/layers/layer_metadata_upload.html:39
 #: geonode/layers/templates/layers/layer_replace.html:37
@@ -4135,7 +4133,7 @@ msgid ""
 "                        "
 msgstr ""
 "\n"
-"                        Qui ci sono due sistemi di coordinate comuni con il loro valore di EPSG SRID seguita dal loro WKT:\n"
+"                        Voici deux systèmes de coordonnées communs avec leur valeur EPSG SRID suivie de leur WKT.:\n"
 "                        "
 
 #: geonode/layers/templates/upload/layer_upload_crs.html:147
@@ -4305,7 +4303,7 @@ msgstr "Oui: convertir les données en un horodatage en utilisant une représent
 
 #: geonode/layers/templates/upload/layer_upload_time.html:122
 msgid "Start Importer"
-msgstr ""
+msgstr "Commencer l'Importation"
 
 #: geonode/layers/templates/upload/layer_upload_time.html:139
 #, fuzzy
@@ -4321,7 +4319,7 @@ msgstr ""
 #: geonode/layers/templates/upload/layer_upload_time.html:143
 #: geonode/layers/templates/upload/layer_upload_time.html:175
 msgid "Custom"
-msgstr ""
+msgstr "Personnalisé"
 
 #: geonode/layers/templates/upload/layer_upload_time.html:152
 #, fuzzy
@@ -4759,7 +4757,7 @@ msgid ""
 "      "
 msgstr ""
 "\n"
-"        Finalement, la carte contient ces couches qui ne pourront pas être téléchargées\n"
+"        Pour finir, la carte contient ces couches qui ne pourront pas être téléchargées\n"
 "        car celles-ci ne sont pas directement disponibles depuis cette plateforme GeoNode:\n"
 "      "
 
@@ -4850,7 +4848,7 @@ msgstr "Vous n'êtes pas autorisé à visualiser cette carte."
 
 #: geonode/maps/views.py:97
 msgid "An unknown error has occured."
-msgstr "Un errore sconosciuto si è verificato."
+msgstr "Un erreur inconnue est survenue."
 
 #: geonode/maps/views.py:1382
 #, fuzzy
@@ -5439,7 +5437,7 @@ msgstr "précédent"
 #: geonode/services/templates/services/service_resources_harvest.html:96
 #: geonode/services/templates/services/service_resources_harvest.html:98
 msgid "next"
-msgstr ""
+msgstr "suivant"
 
 #: geonode/services/templates/services/service_detail.html:83
 #: geonode/services/templates/services/service_register.html:24
@@ -6388,7 +6386,7 @@ msgstr "Contatez-nous"
 
 #: geonode/templates/base.html:372
 msgid "Tel"
-msgstr ""
+msgstr "Tél"
 
 #: geonode/templates/base.html:519
 #, fuzzy
@@ -6551,7 +6549,7 @@ msgstr "Données ouvertes:"
 
 #: geonode/templates/developer.html:97
 msgid "Cached tiles via WMTS:"
-msgstr "Carreaux en cache via WMTS:"
+msgstr "Tuiles en cache via WMTS:"
 
 #: geonode/templates/help.html:4
 msgid "User Guide"
@@ -6618,54 +6616,53 @@ msgid ""
 "    "
 msgstr ""
 "\n"
-"    <p>The GeoNode provides access to data sets and a map editing application allows users to browse existing maps and contribute their own.</p>\n"
+"<p>GeoNode fournit un accès aux ensembles de données et une application d’édition de cartes permet aux utilisateurs de parcourir les cartes existantes et de contribuer les vôtres. </ p>\n"
 "\n"
-"    <h4 id=\"browsing-data\">Browsing Layers</h4>\n"
-"    <p>The <a href=\"/layers\">Layers</a> tab allows you to browse data uploaded to this GeoNode.</p>\n"
-"    <p>All data can be downloaded in a variety of formats, for use in other applications.</p>\n"
+"    <h4 id=\"browseing-data\"> Parcourir les couches </h4>\n"
+"    <p> L'onglet <a href=\"/layers\"> Calques </a> vous permet de parcourir les données téléchargées sur ce GeoNode.</p>\n"
+"    <p>Toutes les données peuvent être téléchargées dans divers formats pour être utilisées dans d'autres applications.</p>\n"
 "\n"
-"    <h4 id=\"developer-access\">Developer Access</h4>\n"
-"    <p>The <a href=\"/developer\"> Developer</a> page is the place for developers to get started building applications against the GeoNode. It includes instructions on using the web services, links to the source code of the GeoNode, and information about the open source projects used to create it.</p>\n"
+"    <h4 id=\"developer-access\"> Accès développeur <h4>\n"
+"    <p>La page <a href=\"/developer\"> Développeur </a> est le lieu par lequel les développeurs peuvent commencer à créer des applications sur le GeoNode. Il contient des instructions sur l’utilisation des services Web, des liens vers le code source du GeoNode et des informations sur les projets open source utilisés pour le créer. </p>\n"
 "\n"
-"    <h4 id=\"browsing-maps\">Browsing Maps</h4>\n"
-"    <p>The GeoNode allows users to create and share maps with one another.</p>\n"
-"    <p>The <a href=\"/maps\">Maps</a> tab is a gateway to map exploration on GeoNode.  From here you can <strong>search for a map</strong> or <strong>create a map</strong>, which will open the <a href=\"/maps/new\">Map Composer</a>.</p>\n"
-"    <h5>Google Earth Mode</h5>\n"
-"    <p>Any map viewed in the interactive map editor can be seen in 3D mode with the Google Earth plugin. To switch to 3D mode select the Google Earth globe logo, the rightmost button on top toolbar. If you do not have the Google Earth plugin installed you will be prompted to install it.</p>\n"
+"    <h4 id=\"browseing-maps\"> Cartes de navigation </h4>\n"
+"    <p>GeoNode permet aux utilisateurs de créer et de partager des cartes les uns avec les autres. </p>\n"
+"    <p>L'onglet <a href=\"/maps\"> Cartes </a> est une passerelle permettant de cartographier l'exploration sur GeoNode. À partir de là, vous pouvez <strong> rechercher une carte </strong> ou <strong> créer une carte </strong>, ce qui ouvrira le <a href=\"/maps/new\"> Composeur de Carte </a>.</p>\n"
+"    <h5>Mode Google Earth </h5>\n"
+"    <p>Toute carte affichée dans l'éditeur de carte interactive peut être vue en mode 3D avec le plug-in Google Earth. Pour passer en mode 3D, sélectionnez le logo du globe terrestre Google Earth, le bouton le plus à droite de la barre d'outils supérieure. Si le plug-in Google Earth n'est pas installé, vous serez invité à l'installer. </p>\n"
 "\n"
-"    <h4 id=\"creating-a-map\">Creating a Map</h4>\n"
-"    <p>To create a new map go to the <a href=\"/maps\">Contributed Maps</a> tab and click the <a href=\"/maps/new\">create your own map</a> link.</p>\n"
-"    <p>This will take you to the <a href=\"/maps/new\">Map Composer</a> with a base layer loaded.</p>\n"
-"    <p>To add data layers from the GeoNode click on the green plus button located below the layers tab on the left hand side of the screen. This will open a dialog listing all the layers available on the GeoNode.</p>\n"
-"    <p>To add layers to your map select them and hit the <strong>Add Layers</strong> button. When finished you may hit <strong>Done</strong> to close the dialog and go back to the map.</p>\n"
+"    <h4 id=\"creating-a-map\"> Création d'une carte </h4>\n"
+"    <p> Pour créer une nouvelle carte, accédez à l'onglet <a href=\"/maps\"> Cartes contribuées </a> et cliquez sur le lien <a href=\"/maps/new\"> créer votre propre carte </a>. . </p>\n"
+"    <p> Cela vous mènera au <a href=\"/maps/new\"> Map Composer </a> avec une couche de base chargée. </p>\n"
+"    <p> Pour ajouter des couches de données à partir du GeoNode, cliquez sur le bouton plus vert situé sous l’onglet des couches à gauche de l’écran. Ceci ouvrira une boîte de dialogue listant toutes les couches disponibles sur le GeoNode. </p>\n"
+"    <p> Pour ajouter des couches à votre carte, sélectionnez-les et cliquez sur le bouton <strong> Ajouter des couches </strong>. Lorsque vous avez terminé, vous pouvez appuyer sur <strong> Terminé </strong> pour fermer la boîte de dialogue et revenir à la carte. </p>\n"
 "\n"
-"    <h5>Reordering and Removing Layers</h5>\n"
-"    <p>Change the display order of the layers listed in the data tab by simply dragging and dropping their names. The order in the map will be updated to reflect that. To turn a layer's visibility off simply uncheck it, and to remove it entirely select it and hit the red minus button.</p>\n"
+"    <h5> Réorganisation et suppression des calques </h5>\n"
+"    <p> Modifiez l'ordre d'affichage des couches répertoriées dans l'onglet de données en faisant simplement glisser leur nom. L'ordre dans la carte sera mis à jour pour refléter cela. Pour désactiver la visibilité d'un calque, décochez-le simplement et supprimez-le complètement. Sélectionnez-le et cliquez sur le bouton moins rouge. </p>\n"
 "\n"
-"    <h5>Saving your map</h5>\n"
-"    <p>Once a suitable set of layers and zoom level has been found it's time to save it so others can see it.  Click the Save button--the left most icon on the top toolbar, an image of a map with a disk--on the top menu and fill out the title and abstract of the map.</p>\n"
+"    <h5> Enregistrement de votre carte </h5>\n"
+"    <p> Une fois qu'un ensemble de calques et un niveau de zoom appropriés ont été trouvés, il est temps de les enregistrer afin que les autres utilisateurs puissent les voir. Cliquez sur le bouton Enregistrer - l'icône la plus à gauche de la barre d'outils supérieure, une image d'une carte avec un disque - dans le menu du haut, puis remplissez le titre et le résumé de la carte. </p>\n"
 "\n"
-"    <h4 id=\"exporting-a-map\">Publishing a Map</h4>\n"
-"    <p>Any map from the GeoNode can be embedded for use in another site or blog. To publish a map:</p>\n"
+"    <h4 id=\"export-a-map\"> Publication d'une carte </h4>\n"
+"    <p> Toute carte du GeoNode peut être intégrée pour être utilisée dans un autre site ou blog. Pour publier une carte: </p>\n"
 "    <ol>\n"
-"      <li>Select the from the list of maps on the community or map page and then hit the 'Publish map' button.</li>\n"
-"      <li>Choose your desired height and width for the widget in the wizard.</li>\n"
-"      <li>Copy the HTML snippet provided in the wizard to any HTML page or iFrame-supporting blog post.</li>\n"
+"      <li> Sélectionnez la dans la liste des cartes de la communauté ou de la page de carte, puis cliquez sur le bouton \"Publier la carte\". </li>\n"
+"      <li> Choisissez la hauteur et la largeur souhaitées pour le widget dans l'assistant. </li>\n"
+"      <li> Copiez l'extrait de code HTML fourni dans l'assistant vers une page HTML ou un article de blog prenant en charge iFrame. </li>\n"
 "    </ol>\n"
-"    <p>This will put an interactive widget showing you map in your web page or blog post.</p>\n"
-"    <p>Note that the <a href=\"/maps/new\">Map Composer</a> also has a button to publish the map. Just be sure to save the map before publishing if there are changes that you want others to see. It publishes the last saved version, not the last viewed version.</p>\n"
+"    <p> Ceci mettra un widget interactif vous montrant la carte dans votre page Web ou votre blog. </p>\n"
+"    <p> Notez que le <a href=\"/maps/new\"> Map Composer </a> dispose également d'un bouton pour publier la carte. Veillez simplement à enregistrer la carte avant de la publier si vous souhaitez que les modifications soient affichées. Il publie la dernière version enregistrée, pas la dernière version visualisée. </p>\n"
 "\n"
-"    <h4 id=\"remixing-a-map\">Remixing a Map</h4>\n"
-"    <p>Any map available can serve as a starting point for a new map.</p>\n"
+"    <h4 id=\"remixing-a-map\"> Remixage d’une carte </h4>\n"
+"    <p> Toute carte disponible peut servir de point de départ pour une nouvelle carte. </p>\n"
 "    <ol>\n"
-"      <li>Open the map in the Map Composer.</li>\n"
-"      <li>Add and remove layers as you like.</li>\n"
-"      <li>Pan and zoom to highlight the area of interest.</li>\n"
-"      <li><strong>IMPORTANT:</strong> Update the title, abstract, contact info and tags to reflect the new map.</li>\n"
-"      <li>Save the map.</li>\n"
+"      <li> Ouvrez la carte dans le composeur de carte. </li>\n"
+"      <li> Ajoutez et supprimez les calques à votre guise. </li>\n"
+"      <li> Panoramique et zoom pour mettre en évidence la zone d'intérêt. </li>\n"
+"      <li> <strong> IMPORTANT: </strong> mettez à jour le titre, le résumé, les informations de contact et les balises afin de refléter la nouvelle carte. </li>\n"
+"      <li> Enregistrer la carte. </li>\n"
 "    </ol>\n"
-"    <p>You will be able to see your new map when you search for it from the <a href=\"/maps\">Maps</a> tab.</p>\n"
-"    "
+"    <p> Vous pourrez voir votre nouvelle carte en la recherchant dans l'onglet <a href=\"/maps\"> Cartes </a>. </p>"
 
 #: geonode/templates/help.html:66
 msgid "Sections"
@@ -6709,11 +6706,11 @@ msgstr ""
 
 #: geonode/templates/index.html:23
 msgid "Get Started &raquo;"
-msgstr "Get Started &raquo;"
+msgstr "Commencez &raquo;"
 
 #: geonode/templates/index.html:38
 msgid "Search for Data."
-msgstr "Recherche de données."
+msgstr "Recherche de Données."
 
 #: geonode/templates/index.html:49
 msgid "Advanced Search"
@@ -6969,10 +6966,8 @@ msgid "that you wish to join her/his group(s) through this link"
 msgstr "que vous souhaitez rejoindre son / ses groupe (s) via ce lien"
 
 #: geonode/templates/invitations/email/email_invite_message.txt:13
-#, fuzzy
-#| msgid "The following groups:"
 msgid "is a member of the following group(s)"
-msgstr "Les groupes suivants:"
+msgstr "est un membre du/(des) groupe(s) suivant(s)"
 
 #: geonode/templates/metadata_base.html:149
 msgid "Updating Metadata..."
@@ -7765,7 +7760,7 @@ msgstr "Un seul fichier de formes par zip est autorisé"
 
 #: geonode/upload/upload_validators.py:171
 msgid "kml files with more than one GroundOverlay are not supported"
-msgstr "Les fichiers KML avec plusieurs GroundOverlay ne sont pas supportés"
+msgstr "les fichiers KML avec plusieurs GroundOverlay ne sont pas supportés"
 
 #: geonode/upload/upload_validators.py:182
 #, fuzzy
