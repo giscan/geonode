@@ -6557,7 +6557,7 @@ msgstr "Guide de l'utilisateur"
 
 #: geonode/templates/help.html:8
 msgid "GeoNode Help"
-msgstr "GeoNode Aide"
+msgstr "Aide GeoNode"
 
 #: geonode/templates/help.html:12
 msgid "This page provides helpful information about how to use the GeoNode. You can use the sidebar links to navigate to what you want to know."
@@ -6622,7 +6622,7 @@ msgstr ""
 "    <p> L'onglet <a href=\"/layers\"> Calques </a> vous permet de parcourir les données téléchargées sur ce GeoNode.</p>\n"
 "    <p>Toutes les données peuvent être téléchargées dans divers formats pour être utilisées dans d'autres applications.</p>\n"
 "\n"
-"    <h4 id=\"developer-access\"> Accès développeur <h4>\n"
+"    <h4 id=\"developer-access\"> Accès développeur </h4>\n"
 "    <p>La page <a href=\"/developer\"> Développeur </a> est le lieu par lequel les développeurs peuvent commencer à créer des applications sur le GeoNode. Il contient des instructions sur l’utilisation des services Web, des liens vers le code source du GeoNode et des informations sur les projets open source utilisés pour le créer. </p>\n"
 "\n"
 "    <h4 id=\"browsing-maps\"> Cartes de navigation </h4>\n"
