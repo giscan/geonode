@@ -28,6 +28,13 @@ ACCESS_TOKEN_EXPIRE_SECONDS
 
     When a user logs into GeoNode, if no ``ACCESS_TOKEN`` exists, a new one will be created with a default expiration time of ``ACCESS_TOKEN_EXPIRE_SECONDS`` seconds (1 day by default).
 
+ACCOUNT_ADAPTER
+---------------
+
+    | Default: ``geonode.people.adapters.LocalAccountAdapter``
+
+    Custom GeoNode People (Users) Account Adapter.
+
 ACCOUNT_APPROVAL_REQUIRED
 -------------------------
 
@@ -89,9 +96,20 @@ ACCOUNT_OPEN_SIGNUP
 -------------------
 
     | Default: ``True``
+    | Env: ``ACCOUNT_OPEN_SIGNUP``
 
     This is a `django-user-accounts setting <https://django-user-accounts.readthedocs.io/en/latest/settings.html>`__
     Whether or not people are allowed to self-register to GeoNode or not.
+
+ACCOUNT_SIGNUP_FORM_CLASS
+-------------------------
+
+    | Default: ``geonode.people.forms.AllauthReCaptchaSignupForm``
+    | Env: ``ACCOUNT_SIGNUP_FORM_CLASS``
+
+    Enabled only when the :ref:`recaptcha_enabled` option is ``True``.
+
+    Ref. to :ref:`recaptcha_enabled`
 
 ACTSTREAM_SETTINGS
 ------------------
@@ -198,10 +216,27 @@ AUTH_EXEMPT_URLS
     ``AUTH_EXEMPT_URLS = ('/maps',)`` will allow unauthenticated users to
     browse maps.
 
+AUTO_ASSIGN_REGISTERED_MEMBERS_TO_REGISTERED_MEMBERS_GROUP_NAME
+---------------------------------------------------------------
+
+    | Default: ``True``
+    | Env: ``AUTO_ASSIGN_REGISTERED_MEMBERS_TO_REGISTERED_MEMBERS_GROUP_NAME``
+
+    Auto assign users to a default ``REGISTERED_MEMBERS_GROUP_NAME`` private group after ``AUTO_ASSIGN_REGISTERED_MEMBERS_TO_REGISTERED_MEMBERS_GROUP_AT``.
+
+AUTO_ASSIGN_REGISTERED_MEMBERS_TO_REGISTERED_MEMBERS_GROUP_AT
+-------------------------------------------------------------
+
+    | Default: ``activation``
+    | Env: ``AUTO_ASSIGN_REGISTERED_MEMBERS_TO_REGISTERED_MEMBERS_GROUP_AT``
+    | Options: ``"registration" | "activation" | "login"``
+
+    Auto assign users to a default ``REGISTERED_MEMBERS_GROUP_NAME`` private group after {"registration" | "activation" | "login"}.
+
 AUTO_GENERATE_AVATAR_SIZES
 --------------------------
 
-    Default: ``20, 30, 32, 40, 50, 65, 70, 80, 100, 140, 200, 240``
+    | Default: ``20, 30, 32, 40, 50, 65, 70, 80, 100, 140, 200, 240``
 
     An iterable of integers representing the sizes of avatars to generate on upload. This can save rendering time later on if you pre-generate the resized versions.
 
@@ -257,6 +292,48 @@ AWS_STORAGE_BUCKET_NAME
 
 B
 =
+
+BING_API_KEY
+------------
+
+    | Default: ``None``
+    | Env: ``BING_API_KEY``
+
+    This property allows to enable a Bing Aerial background.
+
+    If using ``mapstore`` client library, make sure the ``MAPSTORE_BASELAYERS`` include the following:
+
+    .. code-block:: python
+    
+        if BING_API_KEY:
+            BASEMAP = {
+                "type": "bing",
+                "title": "Bing Aerial",
+                "name": "AerialWithLabels",
+                "source": "bing",
+                "group": "background",
+                "apiKey": "{{apiKey}}",
+                "visibility": False
+            }
+            DEFAULT_MS2_BACKGROUNDS = [BASEMAP,] + DEFAULT_MS2_BACKGROUNDS
+
+    If using ``geoext`` client library, make sure the ``MAP_BASELAYERS`` include the following:
+
+    .. code-block:: python
+
+        if BING_API_KEY:
+            BASEMAP = {
+                'source': {
+                    'ptype': 'gxp_bingsource',
+                    'apiKey': BING_API_KEY
+                },
+                'name': 'AerialWithLabels',
+                'fixed': True,
+                'visibility': True,
+                'group': 'background'
+            }
+            MAP_BASELAYERS.append(BASEMAP)
+
 
 BROKER_HEARTBEAT
 ----------------
@@ -606,17 +683,6 @@ DEFAULT_WORKSPACE
 
     The standard GeoServer workspace.
 
-DELAYED_SECURITY_INTERVAL
--------------------------
-
-    | Default: ``60``
-    | Env: ``DELAYED_SECURITY_INTERVAL``
-
-    This setting only works when ``DELAYED_SECURITY_SIGNALS`` has been activated and the Celery worker is running.
-    It defines the time interval in seconds for the Celery task to check if there are resources to be synchronized.
-
-    For more details see ``DELAYED_SECURITY_SIGNALS``
-
 DELAYED_SECURITY_SIGNALS
 ------------------------
 
@@ -629,7 +695,7 @@ DELAYED_SECURITY_SIGNALS
     either:
 
     a. A Celery Worker is running and it is able to execute the ``geonode.security.tasks.synch_guardian`` periodic task;
-       notice that the task will be executed every ``DELAYED_SECURITY_INTERVAL`` seconds.
+       notice that the task will be executed at regular intervals, based on the interval value defined in the corresponding PeriodicTask model.
 
     b. A periodic ``cron`` job runs the ``sync_security_rules`` management command, or either it is manually executed from the Django shell.
 
@@ -793,10 +859,12 @@ GEONODE_CLIENT_LAYER_PREVIEW_LIBRARY
 
     Default:  ``"mapstore"``
 
-    The library to use for display preview images of layers.  The library choices are:
+    The library to use for display preview images of layers. The library choices are:
 
-     ``"leaflet"``
+     ``"mapstore"``
      ``"geoext"``
+     ``"leaflet"``
+     ``"react"``
 
 GEONODE_EXCHANGE
 ----------------
@@ -945,6 +1013,98 @@ MAP_CLIENT_USE_CROSS_ORIGIN_CREDENTIALS
 
     Enables cross origin requests for geonode-client.
 
+MAPSTORE_BASELAYERS
+-------------------
+
+    | Default::
+
+        [
+            {
+                "type": "osm",
+                "title": "Open Street Map",
+                "name": "mapnik",
+                "source": "osm",
+                "group": "background",
+                "visibility": True
+            }, {
+                "type": "tileprovider",
+                "title": "OpenTopoMap",
+                "provider": "OpenTopoMap",
+                "name": "OpenTopoMap",
+                "source": "OpenTopoMap",
+                "group": "background",
+                "visibility": False
+            }, {
+                "type": "wms",
+                "title": "Sentinel-2 cloudless - https://s2maps.eu",
+                "format": "image/png8",
+                "id": "s2cloudless",
+                "name": "s2cloudless:s2cloudless",
+                "url": "https://maps.geo-solutions.it/geoserver/wms",
+                "group": "background",
+                "thumbURL": "%sstatic/mapstorestyle/img/s2cloudless-s2cloudless.png" % SITEURL,
+                "visibility": False
+           }, {
+                "source": "ol",
+                "group": "background",
+                "id": "none",
+                "name": "empty",
+                "title": "Empty Background",
+                "type": "empty",
+                "visibility": False,
+                "args": ["Empty Background", {"visibility": False}]
+           }
+        ]
+    
+    | Env: ``MAPSTORE_BASELAYERS``
+
+    Allows to specify which backgrounds MapStore should use. The parameter ``visibility`` for a layer, specifies which one is the default one.
+
+    A sample configuration using the Bing background witouhg OpenStreetMap, could be the following one:
+
+    .. code-block:: python
+
+        [
+            {
+                "type": "bing",
+                "title": "Bing Aerial",
+                "name": "AerialWithLabels",
+                "source": "bing",
+                "group": "background",
+                "apiKey": "{{apiKey}}",
+                "visibility": True
+            }, {
+                "type": "tileprovider",
+                "title": "OpenTopoMap",
+                "provider": "OpenTopoMap",
+                "name": "OpenTopoMap",
+                "source": "OpenTopoMap",
+                "group": "background",
+                "visibility": False
+            }, {
+                "type": "wms",
+                "title": "Sentinel-2 cloudless - https://s2maps.eu",
+                "format": "image/png8",
+                "id": "s2cloudless",
+                "name": "s2cloudless:s2cloudless",
+                "url": "https://maps.geo-solutions.it/geoserver/wms",
+                "group": "background",
+                "thumbURL": "%sstatic/mapstorestyle/img/s2cloudless-s2cloudless.png" % SITEURL,
+                "visibility": False
+           }, {
+                "source": "ol",
+                "group": "background",
+                "id": "none",
+                "name": "empty",
+                "title": "Empty Background",
+                "type": "empty",
+                "visibility": False,
+                "args": ["Empty Background", {"visibility": False}]
+           }
+        ]
+    
+    .. warning:: To use a Bing background, you need to correctly set and provide a valid ``BING_API_KEY``
+
 MAX_DOCUMENT_SIZE
 -----------------
 
@@ -992,6 +1152,31 @@ MONITORING_ENABLED
 
     See :ref:`geonode_monitoring` for details.
 
+.. _monitoring-data-aggregation:
+
+MONITORING_DATA_AGGREGATION
+---------------------------
+
+    Default:
+
+    .. code::
+
+        (
+            (timedelta(seconds=0), timedelta(minutes=1),),
+            (timedelta(days=1), timedelta(minutes=60),),
+            (timedelta(days=14), timedelta(days=1),),
+        )
+
+    Configure aggregation of past data to control data resolution. It lists data age and aggregation in reverse order, by default:
+
+    | - for current data, 1 minute resolution
+    | - for data older than 1 day, 1-hour resolution
+    | - for data older than 2 weeks, 1 day resolution
+
+    See :ref:`geonode_monitoring` for further details.
+
+    This setting takes effects only if :ref:`user-analytics` is true.
+
 MONITORING_DATA_TTL
 -------------------
 
@@ -1007,6 +1192,31 @@ MONITORING_DISABLE_CSRF
     | Env: ``MONITORING_DISABLE_CSRF``
 
     Set this to true to disable csrf check for notification config views, use with caution - for dev purpose only.
+
+.. _monitoring-skip-paths:
+
+MONITORING_SKIP_PATHS
+-----------------------
+
+    Default:
+
+    .. code::
+
+        (
+            '/api/o/',
+            '/monitoring/',
+            '/admin',
+            '/lang.js',
+            '/jsi18n',
+            STATIC_URL,
+            MEDIA_URL,
+            re.compile('^/[a-z]{2}/admin/'),
+        )
+
+    Skip certain useless paths to not to mud analytics stats too much.
+    See :ref:`geonode_monitoring` to learn more about it.
+
+    This setting takes effects only if :ref:`user-analytics` is true.
 
 N
 =
@@ -1029,11 +1239,55 @@ NOTIFICATION_ENABLED
 O
 =
 
+OAUTH2_API_KEY
+--------------
+
+    | Default: ``None``
+    | Env: ``OAUTH2_API_KEY``
+
+    In order to protect oauth2 REST endpoints, used by GeoServer to fetch user roles and infos, you should set this key and configure the ``geonode REST role service`` accordingly. Keep it secret!
+
+    .. warning:: If not set, the endpoint can be accessed by users without authorization.
+
 OAUTH2_PROVIDER
 ---------------
 
-    Django OAuth Toolkit provides a support layer for Django REST Framework.
-    For settings visit: `OAuth Toolkit settings <https://django-oauth-toolkit.readthedocs.io/en/latest/rest-framework/getting_started.html>`__
+    Ref.: `OAuth Toolkit settings <https://django-oauth-toolkit.readthedocs.io/en/latest/settings.html>`__
+
+OAUTH2_PROVIDER_APPLICATION_MODEL
+---------------------------------
+
+    | Default: ``oauth2_provider.Application``
+
+    Ref.: `OAuth Toolkit settings <https://django-oauth-toolkit.readthedocs.io/en/latest/settings.html>`__
+
+OAUTH2_PROVIDER_ACCESS_TOKEN_MODEL
+----------------------------------
+
+    | Default: ``oauth2_provider.AccessToken``
+
+    Ref.: `OAuth Toolkit settings <https://django-oauth-toolkit.readthedocs.io/en/latest/settings.html>`__
+
+OAUTH2_PROVIDER_ID_TOKEN_MODEL
+------------------------------
+
+    | Default: ``oauth2_provider.IDToken``
+
+    Ref.: `OAuth Toolkit settings <https://django-oauth-toolkit.readthedocs.io/en/latest/settings.html>`__
+
+OAUTH2_PROVIDER_GRANT_MODEL
+---------------------------
+
+    | Default: ``oauth2_provider.Grant``
+
+    Ref.: `OAuth Toolkit settings <https://django-oauth-toolkit.readthedocs.io/en/latest/settings.html>`__
+
+OAUTH2_PROVIDER_REFRESH_TOKEN_MODEL
+-----------------------------------
+
+    | Default: ``oauth2_provider.RefreshToken``
+
+    Ref.: `OAuth Toolkit settings <https://django-oauth-toolkit.readthedocs.io/en/latest/settings.html>`__
 
 OGC_SERVER_DEFAULT_PASSWORD
 ---------------------------
@@ -1049,7 +1303,7 @@ OGC_SERVER_DEFAULT_USER
     | Default: ``admin``
     | Env: ``GEOSERVER_ADMIN_USER``
 
-    The geoserver user.
+    The GeoServer user.
 
 OGC_SERVER
 ----------
@@ -1250,12 +1504,12 @@ PROXY_URL
 PYCSW
 -----
 
-  A dict with pycsw's configuration.  Of note are the sections
-  ``metadata:main`` to set CSW server metadata and ``metadata:inspire``
-  to set INSPIRE options.  Setting ``metadata:inspire['enabled']`` to ``true``
-  will enable INSPIRE support.   Server level configurations can be overridden
-  in the ``server`` section.  See http://docs.pycsw.org/en/latest/configuration.html
-  for full pycsw configuration details.
+    A dict with pycsw's configuration.  Of note are the sections
+    ``metadata:main`` to set CSW server metadata and ``metadata:inspire``
+    to set INSPIRE options.  Setting ``metadata:inspire['enabled']`` to ``true``
+    will enable INSPIRE support.   Server level configurations can be overridden
+    in the ``server`` section.  See http://docs.pycsw.org/en/latest/configuration.html
+    for full pycsw configuration details.
 
 R
 =
@@ -1267,12 +1521,95 @@ RABBITMQ_SIGNALS_BROKER_URL
 
     The Rabbitmq endpoint
 
+.. _recaptcha_enabled:
+
+RECAPTCHA_ENABLED
+-----------------
+
+    | Default: ``False``
+    | Env: ``RECAPTCHA_ENABLED``
+
+    Allows enabling reCaptcha field on signup form.
+    Valid Captcha Public and Private keys will be needed as specifice here https://pypi.org/project/django-recaptcha/#installation
+
+    More options will be available by enabling this setting:
+
+    * **ACCOUNT_SIGNUP_FORM_CLASS**
+
+        | Default: ``geonode.people.forms.AllauthReCaptchaSignupForm``
+        | Env: ``ACCOUNT_SIGNUP_FORM_CLASS``
+
+        Enabled only when the :ref:`recaptcha_enabled` option is ``True``.
+
+    * **INSTALLED_APPS**
+
+        The ``captcha`` must be present on ``INSTALLED_APPS``, otherwise you'll get an error.
+
+        When enabling the :ref:`recaptcha_enabled` option through the ``environment``, this setting will be automatically added by GeoNode as follows:
+
+        .. code:: python
+
+            if 'captcha' not in INSTALLED_APPS:
+                    INSTALLED_APPS += ('captcha',)
+
+    * **RECAPTCHA_PUBLIC_KEY**
+
+        | Default: ``geonode_RECAPTCHA_PUBLIC_KEY``
+        | Env: ``RECAPTCHA_PUBLIC_KEY``
+
+        In order to generate reCaptcha keys, please see:
+
+        #. https://pypi.org/project/django-recaptcha/#installation
+        #. https://pypi.org/project/django-recaptcha/#local-development-and-functional-testing
+
+    * **RECAPTCHA_PRIVATE_KEY**
+
+        | Default: ``geonode_RECAPTCHA_PRIVATE_KEY``
+        | Env: ``RECAPTCHA_PRIVATE_KEY``
+
+        In order to generate reCaptcha keys, please see:
+
+        #. https://pypi.org/project/django-recaptcha/#installation
+        #. https://pypi.org/project/django-recaptcha/#local-development-and-functional-testing
+
+RECAPTCHA_PUBLIC_KEY
+--------------------
+
+    | Default: ``geonode_RECAPTCHA_PUBLIC_KEY``
+    | Env: ``RECAPTCHA_PUBLIC_KEY``
+
+    Ref. to :ref:`recaptcha_enabled`
+
+RECAPTCHA_PRIVATE_KEY
+---------------------
+
+    | Default: ``geonode_RECAPTCHA_PRIVATE_KEY``
+    | Env: ``RECAPTCHA_PRIVATE_KEY``
+
+    Ref. to :ref:`recaptcha_enabled`
+
 REDIS_SIGNALS_BROKER_URL
 ------------------------
 
     Default: ``redis://localhost:6379/0``
 
     The Redis endpoint.
+
+REGISTERED_MEMBERS_GROUP_NAME
+-----------------------------
+
+    | Default: ``registered-members``
+    | Env: ``REGISTERED_MEMBERS_GROUP_NAME``
+
+    Used by ``AUTO_ASSIGN_REGISTERED_MEMBERS_TO_REGISTERED_MEMBERS_GROUP_NAME`` settings.
+
+REGISTERED_MEMBERS_GROUP_TITLE
+------------------------------
+
+    | Default: ``Registered Members``
+    | Env: ``REGISTERED_MEMBERS_GROUP_TITLE``
+
+    Used by ``AUTO_ASSIGN_REGISTERED_MEMBERS_TO_REGISTERED_MEMBERS_GROUP_NAME`` settings.
 
 REGISTRATION_OPEN
 -----------------
@@ -1674,6 +2011,18 @@ USER_MESSAGES_ALLOW_MULTIPLE_RECIPIENTS
 
     Set to true to have multiple recipients in /message/create/
 
+.. _user-analytics:
+
+USER_ANALYTICS_ENABLED
+----------------------
+
+    | Default: ``False``
+    | Env: ``USER_ANALYTICS_ENABLED``
+
+    Set to true to anonymously collect user data for analytics.
+    If true you have to set :ref:`monitoring-data-aggregation` and :ref:`monitoring-skip-paths`.
+
+    See :ref:`geonode_monitoring` to learn more about it.
 
 X
 =

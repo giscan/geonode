@@ -46,7 +46,8 @@ from geonode.base.models import (
     HierarchicalKeyword,
     MenuPlaceholder,
     Menu,
-    MenuItem
+    MenuItem,
+    CuratedThumbnail,
 )
 from django.http import HttpResponseRedirect
 
@@ -59,6 +60,16 @@ def metadata_batch_edit(modeladmin, request, queryset):
 
 
 metadata_batch_edit.short_description = 'Metadata batch edit'
+
+
+def set_batch_permissions(modeladmin, request, queryset):
+    ids = ','.join([str(element.pk) for element in queryset])
+    resource = queryset[0].class_name.lower()
+    return HttpResponseRedirect(
+        '/{}s/permissions/batch/{}/'.format(resource, ids))
+
+
+set_batch_permissions.short_description = 'Set permissions'
 
 
 class MediaTranslationAdmin(TranslationAdmin):
@@ -266,6 +277,11 @@ class MenuItemAdmin(admin.ModelAdmin):
     list_display = ('title', 'menu', 'order', 'blank_target', 'url')
 
 
+class CuratedThumbnailAdmin(admin.ModelAdmin):
+    model = CuratedThumbnail
+    list_display = ('id', 'resource', 'img', 'img_thumbnail')
+
+
 admin.site.register(TopicCategory, TopicCategoryAdmin)
 admin.site.register(Region, RegionAdmin)
 admin.site.register(SpatialRepresentationType, SpatialRepresentationTypeAdmin)
@@ -278,6 +294,7 @@ admin.site.register(HierarchicalKeyword, HierarchicalKeywordAdmin)
 admin.site.register(MenuPlaceholder, MenuPlaceholderAdmin)
 admin.site.register(Menu, MenuAdmin)
 admin.site.register(MenuItem, MenuItemAdmin)
+admin.site.register(CuratedThumbnail, CuratedThumbnailAdmin)
 
 
 class ResourceBaseAdminForm(ModelForm):

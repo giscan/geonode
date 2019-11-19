@@ -21,6 +21,7 @@
 import math
 import logging
 import urlparse
+import traceback
 from itertools import chain
 
 from guardian.shortcuts import get_perms
@@ -63,15 +64,20 @@ from geonode.utils import (DEFAULT_TITLE,
                            check_ogc_backend)
 from geonode.maps.forms import MapForm
 from geonode.security.views import _perms_info_json
-from geonode.base.forms import CategoryForm
-from geonode.base.models import TopicCategory
+from geonode.base.forms import CategoryForm, TKeywordForm
+from geonode.base.models import (
+    Thesaurus,
+    TopicCategory)
 from geonode import geoserver, qgis_server
 from geonode.groups.models import GroupProfile
 from geonode.documents.models import get_related_documents
 from geonode.people.forms import ProfileForm
 from geonode.base.views import batch_modify
 from .tasks import delete_map
+from geonode.monitoring import register_event
+from geonode.monitoring.models import EventType
 from requests.compat import urljoin
+from deprecated import deprecated
 
 if check_ogc_backend(geoserver.BACKEND_PACKAGE):
     # FIXME: The post service providing the map_status object
@@ -112,7 +118,6 @@ def _resolve_map(request, id, permission='base.change_resourcebase',
 
 
 # BASIC MAP VIEWS #
-
 def map_detail(request, mapid, snapshot=None, template='maps/map_detail.html'):
     '''
     The view that show details of each map
@@ -134,6 +139,8 @@ def map_detail(request, mapid, snapshot=None, template='maps/map_detail.html'):
         config = map_obj.viewer_json(request)
     else:
         config = snapshot_config(snapshot, map_obj, request)
+
+    register_event(request, EventType.EVENT_VIEW, map_obj.title)
 
     config = json.dumps(config)
     layers = MapLayer.objects.filter(map=map_obj.id)
@@ -174,6 +181,8 @@ def map_detail(request, mapid, snapshot=None, template='maps/map_detail.html'):
             from geonode.favorite.utils import get_favorite_info
             context_dict["favorite_info"] = get_favorite_info(request.user, map_obj)
 
+    register_event(request, EventType.EVENT_VIEW, request.path)
+
     return render(request, template, context=context_dict)
 
 
@@ -200,11 +209,41 @@ def map_metadata(
         category_form = CategoryForm(request.POST, prefix="category_choice_field", initial=int(
             request.POST["category_choice_field"]) if "category_choice_field" in request.POST and
             request.POST["category_choice_field"] else None)
+        tkeywords_form = TKeywordForm(
+            prefix="tkeywords",
+            initial={'tkeywords': request.POST.getlist('tkeywords-tkeywords')})
     else:
         map_form = MapForm(instance=map_obj, prefix="resource")
         category_form = CategoryForm(
             prefix="category_choice_field",
             initial=topic_category.id if topic_category else None)
+
+        # Keywords from THESAURUS management
+        map_tkeywords = map_obj.tkeywords.all()
+        tkeywords_list = ''
+        lang = 'en'  # TODO: use user's language
+        if map_tkeywords and len(map_tkeywords) > 0:
+            tkeywords_ids = map_tkeywords.values_list('id', flat=True)
+            if hasattr(settings, 'THESAURUS') and settings.THESAURUS:
+                el = settings.THESAURUS
+                thesaurus_name = el['name']
+                try:
+                    t = Thesaurus.objects.get(identifier=thesaurus_name)
+                    for tk in t.thesaurus.filter(pk__in=tkeywords_ids):
+                        tkl = tk.keyword.filter(lang=lang)
+                        if len(tkl) > 0:
+                            tkl_ids = ",".join(
+                                map(str, tkl.values_list('id', flat=True)))
+                            tkeywords_list += "," + \
+                                tkl_ids if len(
+                                    tkeywords_list) > 0 else tkl_ids
+                except BaseException:
+                    tb = traceback.format_exc()
+                    logger.error(tb)
+
+        tkeywords_form = TKeywordForm(
+            prefix="tkeywords",
+            initial={'tkeywords': tkeywords_list})
 
     if request.method == "POST" and map_form.is_valid(
     ) and category_form.is_valid():
@@ -246,15 +285,14 @@ def map_metadata(
             map_obj.metadata_author = new_author
         map_obj.title = new_title
         map_obj.abstract = new_abstract
-        if new_keywords:
-            map_obj.keywords.clear()
-            map_obj.keywords.add(*new_keywords)
-        if new_regions:
-            map_obj.regions.clear()
-            map_obj.regions.add(*new_regions)
+        map_obj.keywords.clear()
+        map_obj.keywords.add(*new_keywords)
+        map_obj.regions.clear()
+        map_obj.regions.add(*new_regions)
         map_obj.category = new_category
         map_obj.save()
 
+        register_event(request, EventType.EVENT_CHANGE_METADATA, map_obj)
         if not ajax:
             return HttpResponseRedirect(
                 reverse(
@@ -264,6 +302,39 @@ def map_metadata(
                     )))
 
         message = map_obj.id
+
+        try:
+            # Keywords from THESAURUS management
+            tkeywords_to_add = []
+            tkeywords_cleaned = tkeywords_form.clean()
+            if tkeywords_cleaned and len(tkeywords_cleaned) > 0:
+                tkeywords_ids = []
+                for i, val in enumerate(tkeywords_cleaned):
+                    try:
+                        cleaned_data = [value for key, value in tkeywords_cleaned[i].items(
+                        ) if 'tkeywords' in key.lower() and 'autocomplete' not in key.lower()]
+                        tkeywords_ids.extend(map(int, cleaned_data[0]))
+                    except BaseException:
+                        pass
+
+                if hasattr(settings, 'THESAURUS') and settings.THESAURUS:
+                    el = settings.THESAURUS
+                    thesaurus_name = el['name']
+                    try:
+                        t = Thesaurus.objects.get(
+                            identifier=thesaurus_name)
+                        for tk in t.thesaurus.all():
+                            tkl = tk.keyword.filter(pk__in=tkeywords_ids)
+                            if len(tkl) > 0:
+                                tkeywords_to_add.append(tkl[0].keyword_id)
+                        map_obj.tkeywords.clear()
+                        map_obj.tkeywords.add(*tkeywords_to_add)
+                    except BaseException:
+                        tb = traceback.format_exc()
+                        logger.error(tb)
+        except BaseException:
+            tb = traceback.format_exc()
+            logger.error(tb)
 
         return HttpResponse(json.dumps({'message': message}))
 
@@ -326,6 +397,7 @@ def map_metadata(
                 map_form.fields['is_approved'].widget.attrs.update(
                     {'disabled': 'true'})
 
+    register_event(request, EventType.EVENT_VIEW_METADATA, map_obj)
     return render(request, template, context={
         "config": json.dumps(config),
         "resource": map_obj,
@@ -334,6 +406,7 @@ def map_metadata(
         "poc_form": poc_form,
         "author_form": author_form,
         "category_form": category_form,
+        "tkeywords_form": tkeywords_form,
         "layers": layers,
         "preview": getattr(settings, 'GEONODE_CLIENT_LAYER_PREVIEW_LIBRARY', 'geoext'),
         "crs": getattr(settings, 'DEFAULT_MAP_CRS', 'EPSG:3857'),
@@ -365,7 +438,26 @@ def map_remove(request, mapid, template='maps/map_remove.html'):
             "map": map_obj
         })
     elif request.method == 'POST':
-        delete_map.delay(object_id=map_obj.id)
+        if getattr(settings, 'SLACK_ENABLED', False):
+            slack_message = None
+            try:
+                from geonode.contrib.slack.utils import build_slack_message_map
+                slack_message = build_slack_message_map("map_delete", map_obj)
+            except BaseException:
+                logger.error("Could not build slack message for delete map.")
+
+            delete_map.delay(object_id=map_obj.id)
+
+            try:
+                from geonode.contrib.slack.utils import send_slack_messages
+                send_slack_messages(slack_message)
+            except BaseException:
+                logger.error("Could not send slack message for delete map.")
+        else:
+            delete_map.delay(object_id=map_obj.id)
+
+        register_event(request, EventType.EVENT_REMOVE, map_obj)
+
         return HttpResponseRedirect(reverse("maps_browse"))
 
 
@@ -390,6 +482,7 @@ def map_embed(
             config = snapshot_config(
                 snapshot, map_obj, request)
 
+        register_event(request, EventType.EVENT_VIEW, map_obj)
     return render(request, template, context={
         'config': json.dumps(config)
     })
@@ -472,6 +565,7 @@ def map_embed_widget(request, mapid,
         'map_bbox': map_bbox,
         'map_layers': layers
     }
+    register_event(request, EventType.EVENT_VIEW, map_obj)
     message = render(request, template, context)
     return HttpResponse(message)
 
@@ -519,6 +613,7 @@ def map_view(request, mapid, snapshot=None, layer_name=None,
         config = add_layers_to_map_config(
             request, map_obj, (layer_name, ), False)
 
+    register_event(request, EventType.EVENT_VIEW, request.path)
     return render(request, template, context={
         'config': json.dumps(config),
         'map': map_obj,
@@ -579,6 +674,7 @@ def map_json(request, mapid, snapshot=None):
                 map=map_obj,
                 user=request.user)
 
+            register_event(request, EventType.EVENT_CHANGE, map_obj)
             return HttpResponse(
                 json.dumps(
                     map_obj.viewer_json(request)))
@@ -700,6 +796,7 @@ def new_map_json(request):
         except ValueError as e:
             return HttpResponse(str(e), status=400)
         else:
+            register_event(request, EventType.EVENT_UPLOAD, map_obj)
             return HttpResponse(
                 json.dumps({'id': map_obj.id}),
                 status=200,
@@ -831,6 +928,7 @@ def add_layers_to_map_config(
                                target_srid=int(srs.split(":")[1]))[:4])
         config["capability"] = {
             "abstract": layer.abstract,
+            "store": layer.store,
             "name": layer.alternate,
             "title": layer.title,
             "queryable": True,
@@ -849,14 +947,14 @@ def add_layers_to_map_config(
                 "EPSG:4326": {
                     "srs": "EPSG:4326",
                     "bbox": decimal_encode(bbox) if layer.srid == 'EPSG:4326' else
-                    decimal_encode(bbox_to_projection(
-                        [float(coord) for coord in layer_bbox] + [layer.srid, ], target_srid=4326)[:4])
+                    bbox_to_projection(
+                        [float(coord) for coord in layer_bbox] + [layer.srid, ], target_srid=4326)[:4]
                 },
                 "EPSG:900913": {
                     "srs": "EPSG:900913",
                     "bbox": decimal_encode(bbox) if layer.srid == 'EPSG:900913' else
-                    decimal_encode(bbox_to_projection(
-                        [float(coord) for coord in layer_bbox] + [layer.srid, ], target_srid=3857)[:4])
+                    bbox_to_projection(
+                        [float(coord) for coord in layer_bbox] + [layer.srid, ], target_srid=3857)[:4]
                 }
             },
             "srs": {
@@ -881,8 +979,8 @@ def add_layers_to_map_config(
             "prefix": layer.alternate.split(":")[0] if ":" in layer.alternate else "",
             "keywords": [k.name for k in layer.keywords.all()] if layer.keywords else [],
             "llbbox": decimal_encode(bbox) if layer.srid == 'EPSG:4326' else
-            decimal_encode(bbox_to_projection(
-                [float(coord) for coord in layer_bbox] + [layer.srid, ], target_srid=4326)[:4])
+            bbox_to_projection(
+                [float(coord) for coord in layer_bbox] + [layer.srid, ], target_srid=4326)[:4]
         }
 
         all_times = None
@@ -897,12 +995,12 @@ def add_layers_to_map_config(
             if wms_capabilities_resp.status_code >= 200 and wms_capabilities_resp.status_code < 400:
                 wms_capabilities = wms_capabilities_resp.getvalue()
                 if wms_capabilities:
-                    import xml.etree.ElementTree as ET
+                    from defusedxml import lxml as dlxml
                     namespaces = {'wms': 'http://www.opengis.net/wms',
                                   'xlink': 'http://www.w3.org/1999/xlink',
                                   'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
 
-                    e = ET.fromstring(wms_capabilities)
+                    e = dlxml.fromstring(wms_capabilities)
                     for atype in e.findall(
                             "./[wms:Name='%s']/wms:Dimension[@name='time']" % (layer.alternate), namespaces):
                         dim_name = atype.get('name')
@@ -1088,6 +1186,9 @@ def map_download(request, mapid, template='maps/map_download.html'):
                             [_l for _l in downloadable_layers if _l.name == lyr.name]) == 0:
                         downloadable_layers.append(lyr)
     site_url = settings.SITEURL.rstrip('/') if settings.SITEURL.startswith('http') else settings.SITEURL
+
+    register_event(request, EventType.EVENT_DOWNLOAD, map_obj)
+
     return render(request, template, context={
         "geoserver": ogc_server_settings.PUBLIC_LOCATION,
         "map_status": map_status,
@@ -1113,6 +1214,7 @@ def map_wmc(request, mapid, template="maps/wmc.xml"):
     }, content_type='text/xml')
 
 
+@deprecated(version='2.10.1', reason="APIs have been changed on geospatial service")
 def map_wms(request, mapid):
     """
     Publish local map layers as group layer in local OWS.
@@ -1135,6 +1237,7 @@ def map_wms(request, mapid):
                 layerGroupName=layerGroupName,
                 ows=getattr(ogc_server_settings, 'ows', ''),
             )
+            register_event(request, EventType.EVENT_PUBLISH, map_obj)
             return HttpResponse(
                 json.dumps(response),
                 content_type="application/json")
@@ -1357,6 +1460,7 @@ def map_metadata_detail(
         except GroupProfile.DoesNotExist:
             group = None
     site_url = settings.SITEURL.rstrip('/') if settings.SITEURL.startswith('http') else settings.SITEURL
+    register_event(request, EventType.EVENT_VIEW_METADATA, map_obj)
     return render(request, template, context={
         "resource": map_obj,
         "group": group,

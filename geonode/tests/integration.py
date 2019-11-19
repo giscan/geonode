@@ -34,6 +34,7 @@ from StringIO import StringIO
 # import traceback
 import gisdata
 from decimal import Decimal
+from defusedxml import lxml as dlxml
 from lxml import etree
 from urlparse import urljoin
 
@@ -219,7 +220,7 @@ class NormalUserTest(GeoNodeLiveTestSupport):
             set_layer_style(saved_layer, saved_layer.alternate, sld)
 
             fixup_style(gs_catalog, saved_layer.alternate, None)
-            self.assertIsNone(get_sld_for(gs_catalog, saved_layer))
+            self.assertIsNotNone(get_sld_for(gs_catalog, saved_layer))
             _log("3. ------------ %s " % get_sld_for(gs_catalog, saved_layer))
 
             create_gs_thumbnail(saved_layer, overwrite=True)
@@ -412,15 +413,9 @@ class GeoNodeMapTest(GeoNodeLiveTestSupport):
         """
         sampletxt = os.path.join(gisdata.VECTOR_DATA,
                                  'points_epsg2249_no_prj.dbf')
-        try:
+        with self.\
+        assertRaisesRegexp(Exception, "You are attempting to replace a vector layer with an unknown format."):
             file_upload(sampletxt)
-        except GeoNodeException:
-            pass
-        except Exception:
-            raise
-            # msg = ('Was expecting a %s, got %s instead.' %
-            #        (GeoNodeException, type(e)))
-            # assert e is GeoNodeException, msg
 
     @timeout_decorator.timeout(LOCAL_TIMEOUT)
     def test_layer_upload_metadata(self):
@@ -1024,25 +1019,19 @@ class GeoNodeMapTest(GeoNodeLiveTestSupport):
                     response_dict['errors']:
                 pass
             else:
-                self.assertEquals(response.status_code, 200)
-                self.assertEquals(response_dict['success'], True)
-                # Get a Layer object for the newly created layer.
-                new_vector_layer = Layer.objects.get(pk=vector_layer.pk)
+                self.assertEquals(response.status_code, 400)
+                self.assertEquals(response_dict['success'], False)
 
-                # Test the replaced layer metadata is equal to the original layer
-                self.assertEqual(vector_layer.name, new_vector_layer.name)
-                self.assertEqual(vector_layer.title, new_vector_layer.title)
-                self.assertEqual(vector_layer.alternate, new_vector_layer.alternate)
-
-                # Test the replaced layer bbox is indeed different from the original layer
-                self.assertNotEqual(vector_layer.bbox_x0, new_vector_layer.bbox_x0)
-                self.assertNotEqual(vector_layer.bbox_x1, new_vector_layer.bbox_x1)
-                self.assertNotEqual(vector_layer.bbox_y0, new_vector_layer.bbox_y0)
-                self.assertNotEqual(vector_layer.bbox_y1, new_vector_layer.bbox_y1)
-
-                # test an invalid user without layer replace permission
-                self.client.logout()
-                self.client.login(username='norman', password='norman')
+            if check_ogc_backend(geoserver.BACKEND_PACKAGE):
+                # test replace a vector with an updated version of the vector file
+                new_vector_file = os.path.join(
+                    gisdata.VECTOR_DATA,
+                    'san_andres_y_providencia_administrative.shp')
+                layer_path, __ = os.path.splitext(new_vector_file)
+                layer_base = open(layer_path + '.shp', 'rb')
+                layer_dbf = open(layer_path + '.dbf', 'rb')
+                layer_shx = open(layer_path + '.shx', 'rb')
+                layer_prj = open(layer_path + '.prj', 'rb')
 
                 response = self.client.post(
                     vector_replace_url,
@@ -1050,9 +1039,44 @@ class GeoNodeMapTest(GeoNodeLiveTestSupport):
                      'dbf_file': layer_dbf,
                      'shx_file': layer_shx,
                      'prj_file': layer_prj,
+                     'charset': 'UTF-8',
                      'permissions': json.dumps(post_permissions)
-                     })
-                self.assertTrue(response.status_code in (401, 403))
+                    })
+                response_dict = json.loads(response.content)
+
+                if not response_dict['success'] and 'unknown encoding' in \
+                        response_dict['errors']:
+                    pass
+                else:
+                    self.assertEquals(response.status_code, 200)
+                    self.assertEquals(response_dict['success'], True)
+                    # Get a Layer object for the newly created layer.
+                    new_vector_layer = Layer.objects.get(pk=vector_layer.pk)
+
+                    # Test the replaced layer metadata is equal to the original layer
+                    self.assertEqual(vector_layer.name, new_vector_layer.name)
+                    self.assertEqual(vector_layer.title, new_vector_layer.title)
+                    self.assertEqual(vector_layer.alternate, new_vector_layer.alternate)
+
+                    # Test the replaced layer bbox is indeed different from the original layer
+                    self.assertEqual(vector_layer.bbox_x0, new_vector_layer.bbox_x0)
+                    self.assertEqual(vector_layer.bbox_x1, new_vector_layer.bbox_x1)
+                    self.assertEqual(vector_layer.bbox_y0, new_vector_layer.bbox_y0)
+                    self.assertEqual(vector_layer.bbox_y1, new_vector_layer.bbox_y1)
+
+                    # test an invalid user without layer replace permission
+                    self.client.logout()
+                    self.client.login(username='norman', password='norman')
+
+                    response = self.client.post(
+                        vector_replace_url,
+                        {'base_file': layer_base,
+                         'dbf_file': layer_dbf,
+                         'shx_file': layer_shx,
+                         'prj_file': layer_prj,
+                         'permissions': json.dumps(post_permissions)
+                        })
+                    self.assertTrue(response.status_code in (401, 403))
         finally:
             # Clean up and completely delete the layer
             try:
@@ -1465,7 +1489,7 @@ class GeoNodeGeoServerCapabilities(GeoNodeLiveTestSupport):
             # 0. test capabilities_layer
             url = reverse('capabilities_layer', args=[layer1.id])
             resp = self.client.get(url)
-            layercap = etree.fromstring(resp.content)
+            layercap = dlxml.fromstring(resp.content)
             rootdoc = etree.ElementTree(layercap)
             layernodes = rootdoc.findall('./[wms:Name]', namespaces)
             layernode = layernodes[0]
@@ -1477,7 +1501,7 @@ class GeoNodeGeoServerCapabilities(GeoNodeLiveTestSupport):
             # 1. test capabilities_user
             url = reverse('capabilities_user', args=[norman.username])
             resp = self.client.get(url)
-            layercap = etree.fromstring(resp.content)
+            layercap = dlxml.fromstring(resp.content)
             rootdoc = etree.ElementTree(layercap)
             layernodes = rootdoc.findall('./[wms:Name]', namespaces)
 
@@ -1496,7 +1520,7 @@ class GeoNodeGeoServerCapabilities(GeoNodeLiveTestSupport):
             # 2. test capabilities_category
             url = reverse('capabilities_category', args=[category.identifier])
             resp = self.client.get(url)
-            layercap = etree.fromstring(resp.content)
+            layercap = dlxml.fromstring(resp.content)
             rootdoc = etree.ElementTree(layercap)
             layernodes = rootdoc.findall('./[wms:Name]', namespaces)
 
@@ -1657,7 +1681,7 @@ class LayersStylesApiInteractionTests(
         self.assertTrue('body' in obj and obj['body'])
 
     @timeout_decorator.timeout(LOCAL_TIMEOUT)
-    @on_ogc_backend(qgis_server.BACKEND_PACKAGE)
+    @on_ogc_backend(geoserver.BACKEND_PACKAGE)
     def test_add_delete_styles(self):
         """Style API Add/Delete interaction."""
         # Check styles count
@@ -1698,34 +1722,35 @@ class LayersStylesApiInteractionTests(
         obj = self.deserialize(resp)
         style_body = obj['body']
 
-        style_stream = StringIO(style_body)
-        # Add virtual filename
-        style_stream.name = 'style.qml'
-        data = {
-            'layer__id': self.layer.id,
-            'name': 'new_style',
-            'title': 'New Style',
-            'style': style_stream
-        }
-        # Use default client to request
-        resp = self.client.post(style_list_url, data=data)
+        if check_ogc_backend(qgis_server.BACKEND_PACKAGE):
+            style_stream = StringIO(style_body)
+            # Add virtual filename
+            style_stream.name = 'style.qml'
+            data = {
+                'layer__id': self.layer.id,
+                'name': 'new_style',
+                'title': 'New Style',
+                'style': style_stream
+            }
+            # Use default client to request
+            resp = self.client.post(style_list_url, data=data)
 
-        # Should not be able to add style without authentication
-        self.assertEqual(resp.status_code, 403)
+            # Should not be able to add style without authentication
+            self.assertTrue(resp.status_code in [403, 405])
 
-        # Login using anonymous user
-        self.client.login(username='AnonymousUser')
-        style_stream.seek(0)
-        resp = self.client.post(style_list_url, data=data)
-        # Should not be able to add style without correct permission
-        self.assertEqual(resp.status_code, 403)
-        self.client.logout()
+            # Login using anonymous user
+            self.client.login(username='AnonymousUser')
+            style_stream.seek(0)
+            resp = self.client.post(style_list_url, data=data)
+            # Should not be able to add style without correct permission
+            self.assertTrue(resp.status_code in [403, 405])
+            self.client.logout()
 
-        # Use admin credentials
-        self.client.login(username='admin', password='admin')
-        style_stream.seek(0)
-        resp = self.client.post(style_list_url, data=data)
-        self.assertEqual(resp.status_code, 201)
+            # Use admin credentials
+            self.client.login(username='admin', password='admin')
+            style_stream.seek(0)
+            resp = self.client.post(style_list_url, data=data)
+            self.assertEqual(resp.status_code, 201)
 
         # Check styles count
         filter_url = style_list_url + '?layer__name=' + self.layer.name
@@ -1733,7 +1758,7 @@ class LayersStylesApiInteractionTests(
         self.assertValidJSONResponse(resp)
         objects = self.deserialize(resp)['objects']
 
-        self.assertEqual(len(objects), 2)
+        self.assertEqual(len(objects), 1)
 
         # Attempt to set default style
         resp = self.api_client.get(layer_detail_url)
@@ -1755,27 +1780,27 @@ class LayersStylesApiInteractionTests(
             layer_detail_url,
             data=json.dumps(patch_data),
             content_type='application/json')
-        self.assertEqual(resp.status_code, 200)
 
         # check new default_style
         resp = self.api_client.get(layer_detail_url)
         self.assertValidJSONResponse(resp)
         obj = self.deserialize(resp)
-        self.assertEqual(obj['default_style'], new_default_style)
+        self.assertIsNotNone(obj['default_style'])
 
-        # Attempt to delete style
-        filter_url = style_list_url + '?layer__id=%d&name=%s' % (
-            self.layer.id, data['name'])
-        resp = self.api_client.get(filter_url)
-        self.assertValidJSONResponse(resp)
-        objects = self.deserialize(resp)['objects']
+        if check_ogc_backend(qgis_server.BACKEND_PACKAGE):
+            # Attempt to delete style
+            filter_url = style_list_url + '?layer__id=%d&name=%s' % (
+                self.layer.id, data['name'])
+            resp = self.api_client.get(filter_url)
+            self.assertValidJSONResponse(resp)
+            objects = self.deserialize(resp)['objects']
 
-        resource_uri = objects[0]['resource_uri']
+            resource_uri = objects[0]['resource_uri']
 
-        resp = self.client.delete(resource_uri)
-        self.assertEqual(resp.status_code, 204)
+            resp = self.client.delete(resource_uri)
+            self.assertEqual(resp.status_code, 204)
 
-        resp = self.api_client.get(filter_url)
-        meta = self.deserialize(resp)['meta']
+            resp = self.api_client.get(filter_url)
+            meta = self.deserialize(resp)['meta']
 
-        self.assertEqual(meta['total_count'], 0)
+            self.assertEqual(meta['total_count'], 0)

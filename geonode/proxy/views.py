@@ -20,22 +20,21 @@
 
 import os
 import re
-import json
 import shutil
 import logging
 import tempfile
 import traceback
 
+from hyperlink import URL
 from slugify import slugify
 from urlparse import urlparse, urlsplit, urljoin
 
 from django.conf import settings
 from django.http import HttpResponse
-from django.utils.http import is_safe_url
 from django.http.request import validate_host
 from django.views.generic import View
 from django.views.decorators.csrf import requires_csrf_token
-from django.middleware.csrf import get_token
+from django.template import loader
 from distutils.version import StrictVersion
 from django.utils.translation import ugettext as _
 from django.core.files.storage import default_storage as storage
@@ -46,15 +45,13 @@ from geonode.utils import (resolve_object,
                            check_ogc_backend,
                            get_dir_time_suffix,
                            zip_dir,
+                           get_headers,
                            http_client,
                            json_response)
-from geonode.base.auth import (extend_token,
-                               get_or_create_token,
-                               get_token_from_auth_header,
-                               get_token_object_from_session)
 from geonode.base.enumerations import LINK_TYPES as _LT
 
 from geonode import geoserver, qgis_server  # noqa
+from geonode.monitoring import register_event
 
 TIMEOUT = 300
 
@@ -64,80 +61,6 @@ logger = logging.getLogger(__name__)
 
 ows_regexp = re.compile(
     r"^(?i)(version)=(\d\.\d\.\d)(?i)&(?i)request=(?i)(GetCapabilities)&(?i)service=(?i)(\w\w\w)$")
-
-
-def get_headers(request, url, raw_url, allowed_hosts=[]):
-    headers = {}
-    cookies = None
-    csrftoken = None
-
-    if settings.SESSION_COOKIE_NAME in request.COOKIES and is_safe_url(
-            url=raw_url, host=url.hostname):
-        cookies = request.META["HTTP_COOKIE"]
-
-    for cook in request.COOKIES:
-        name = str(cook)
-        value = request.COOKIES.get(name)
-        if name == 'csrftoken':
-            csrftoken = value
-        cook = "%s=%s" % (name, value)
-        cookies = cook if not cookies else (cookies + '; ' + cook)
-
-    csrftoken = get_token(request) if not csrftoken else csrftoken
-
-    if csrftoken:
-        headers['X-Requested-With'] = "XMLHttpRequest"
-        headers['X-CSRFToken'] = csrftoken
-        cook = "%s=%s" % ('csrftoken', csrftoken)
-        cookies = cook if not cookies else (cookies + '; ' + cook)
-
-    if cookies:
-        if 'JSESSIONID' in request.session and request.session['JSESSIONID']:
-            cookies = cookies + '; JSESSIONID=' + \
-                request.session['JSESSIONID']
-        headers['Cookie'] = cookies
-
-    if request.method in ("POST", "PUT") and "CONTENT_TYPE" in request.META:
-        headers["Content-Type"] = request.META["CONTENT_TYPE"]
-
-    access_token = None
-    site_url = urlsplit(settings.SITEURL)
-    allowed_hosts += [url.hostname]
-    # We want to convert HTTP_AUTH into a Beraer Token only when hitting the local GeoServer
-    if site_url.hostname in allowed_hosts:
-        # we give precedence to obtained from Aithorization headers
-        if 'HTTP_AUTHORIZATION' in request.META:
-            auth_header = request.META.get(
-                'HTTP_AUTHORIZATION',
-                request.META.get('HTTP_AUTHORIZATION2'))
-            if auth_header:
-                headers['Authorization'] = auth_header
-                access_token = get_token_from_auth_header(auth_header, create_if_not_exists=True)
-        # otherwise we check if a session is active
-        elif request and request.user.is_authenticated:
-            access_token = get_token_object_from_session(request.session)
-
-            # we extend the token in case the session is active but the token expired
-            if access_token and access_token.is_expired():
-                extend_token(access_token)
-            else:
-                access_token = get_or_create_token(request.user)
-
-    if access_token:
-        headers['Authorization'] = 'Bearer %s' % access_token
-
-    pragma = "no-cache"
-    referer = request.META[
-        "HTTP_REFERER"] if "HTTP_REFERER" in request.META else \
-        "{scheme}://{netloc}/".format(scheme=site_url.scheme,
-                                      netloc=site_url.netloc)
-    encoding = request.META["HTTP_ACCEPT_ENCODING"] if "HTTP_ACCEPT_ENCODING" in request.META else "gzip"
-    headers.update({"Pragma": pragma,
-                    "Referer": referer,
-                    "Accept-encoding": encoding,
-    })
-
-    return (headers, access_token)
 
 
 @requires_csrf_token
@@ -227,6 +150,13 @@ def proxy(request, url=None, response_callback=None,
 
     _url = parsed.geturl()
 
+    # Some clients / JS libraries generate URLs with relative URL paths, e.g.
+    # "http://host/path/path/../file.css", which the requests library cannot
+    # currently handle (https://github.com/kennethreitz/requests/issues/2982).
+    # We parse and normalise such URLs into absolute paths before attempting
+    # to proxy the request.
+    _url = URL.from_text(_url).normalize().to_text()
+
     if request.method == "GET" and access_token and 'access_token' not in _url:
         query_separator = '&' if '?' in _url else '?'
         _url = ('%s%saccess_token=%s' %
@@ -288,30 +218,58 @@ def proxy(request, url=None, response_callback=None,
 
 def download(request, resourceid, sender=Layer):
 
+    _not_authorized = _("You are not authorized to download this resource.")
+    _not_permitted = _("You are not permitted to save or edit this resource.")
+    _no_files_found = _("No files have been found for this resource. Please, contact a system administrator.")
+
     instance = resolve_object(request,
                               sender,
                               {'pk': resourceid},
                               permission='base.download_resourcebase',
-                              permission_msg=_("You are not permitted to save or edit this resource."))
+                              permission_msg=_not_permitted)
 
     if isinstance(instance, Layer):
+        # Create Target Folder
+        dirpath = tempfile.mkdtemp()
+        dir_time_suffix = get_dir_time_suffix()
+        target_folder = os.path.join(dirpath, dir_time_suffix)
+        if not os.path.exists(target_folder):
+            os.makedirs(target_folder)
+
+        layer_files = []
         try:
             upload_session = instance.get_upload_session()
-            layer_files = [item for idx, item in enumerate(LayerFile.objects.filter(upload_session=upload_session))]
+            if upload_session:
+                layer_files = [
+                    item for idx, item in enumerate(LayerFile.objects.filter(upload_session=upload_session))]
 
-            # Create Target Folder
-            dirpath = tempfile.mkdtemp()
-            dir_time_suffix = get_dir_time_suffix()
-            target_folder = os.path.join(dirpath, dir_time_suffix)
-            if not os.path.exists(target_folder):
-                os.makedirs(target_folder)
+                if layer_files:
+                    # Copy all Layer related files into a temporary folder
+                    for l in layer_files:
+                        if storage.exists(l.file):
+                            geonode_layer_path = storage.path(l.file)
+                            base_filename, original_ext = os.path.splitext(geonode_layer_path)
+                            shutil.copy2(geonode_layer_path, target_folder)
+                        else:
+                            return HttpResponse(
+                                loader.render_to_string(
+                                    '401.html',
+                                    context={
+                                        'error_title': _("No files found."),
+                                        'error_message': _no_files_found
+                                    },
+                                    request=request), status=404)
 
-            # Copy all Layer related files into a temporary folder
-            for l in layer_files:
-                if storage.exists(l.file):
-                    geonode_layer_path = storage.path(l.file)
-                    base_filename, original_ext = os.path.splitext(geonode_layer_path)
-                    shutil.copy2(geonode_layer_path, target_folder)
+            # Check we can access the original files
+            if not layer_files:
+                return HttpResponse(
+                    loader.render_to_string(
+                        '401.html',
+                        context={
+                            'error_title': _("No files found."),
+                            'error_message': _no_files_found
+                        },
+                        request=request), status=404)
 
             # Let's check for associated SLD files (if any)
             try:
@@ -341,7 +299,6 @@ def download(request, resourceid, sender=Layer):
                         traceback.print_exc()
                         tb = traceback.format_exc()
                         logger.debug(tb)
-
             except BaseException:
                 traceback.print_exc()
                 tb = traceback.format_exc()
@@ -395,6 +352,7 @@ def download(request, resourceid, sender=Layer):
             target_file_name = "".join([instance.name, ".zip"])
             target_file = os.path.join(dirpath, target_file_name)
             zip_dir(target_folder, target_file)
+            register_event(request, 'download', instance)
             response = HttpResponse(
                 content=open(target_file),
                 status=200,
@@ -406,20 +364,21 @@ def download(request, resourceid, sender=Layer):
             tb = traceback.format_exc()
             logger.debug(tb)
             return HttpResponse(
-                json.dumps({
-                    'error': 'file_not_found'
-                }),
-                status=404,
-                content_type="application/json"
-            )
-
+                loader.render_to_string(
+                    '401.html',
+                    context={
+                        'error_title': _("No files found."),
+                        'error_message': _no_files_found
+                    },
+                    request=request), status=404)
     return HttpResponse(
-        json.dumps({
-            'error': 'unauthorized_request'
-        }),
-        status=403,
-        content_type="application/json"
-    )
+        loader.render_to_string(
+            '401.html',
+            context={
+                'error_title': _("Not Authorized"),
+                'error_message': _not_authorized
+            },
+            request=request), status=403)
 
 
 class OWSListView(View):

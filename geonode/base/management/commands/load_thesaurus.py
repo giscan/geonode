@@ -18,7 +18,7 @@
 #
 #########################################################################
 
-import xml.etree.ElementTree as etree
+from defusedxml import lxml as dlxml
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -83,7 +83,7 @@ class Command(BaseCommand):
             'skos': 'http://www.w3.org/2004/02/skos/core#'
         }
 
-        tfile = etree.parse(input_file)
+        tfile = dlxml.parse(input_file)
         root = tfile.getroot()
 
         scheme = root.find('skos:ConceptScheme', ns)
@@ -91,7 +91,7 @@ class Command(BaseCommand):
             raise CommandError("ConceptScheme not found in file")
 
         title = scheme.find('dc:title', ns).text
-        descr = scheme.find('dc:description', ns).text
+        descr = scheme.find('dc:description', ns).text if scheme.find('dc:description', ns) else title
         date_issued = scheme.find('dcterms:issued', ns).text
 
         print 'Thesaurus "{}" issued on {}'.format(title, date_issued)

@@ -126,12 +126,9 @@ def geoserver_upload(
 
     # Get the helper files if they exist
     files = get_files(base_file)
-
     data = files
-
     if 'shp' not in files:
         data = base_file
-
     try:
         store, gs_resource = create_store_and_resource(name,
                                                        data,
@@ -169,17 +166,17 @@ def geoserver_upload(
             workspace=workspace)
         if not gs_resource:
             gs_resource = gs_catalog.get_resource(name=name)
-    if gs_resource is not None:
-        assert gs_resource.name == name
-    else:
+
+    if not gs_resource:
         msg = ('GeoNode encountered problems when creating layer %s.'
                'It cannot find the Layer that matches this Workspace.'
                'try renaming your files.' % name)
         logger.warn(msg)
         raise GeoNodeException(msg)
 
+    assert gs_resource.name == name
+
     # Step 6. Make sure our data always has a valid projection
-    # FIXME: Put this in gsconfig.py
     logger.info('>>> Step 6. Making sure [%s] has a valid projection' % name)
     _native_bbox = None
     try:
@@ -201,12 +198,14 @@ def geoserver_upload(
             _native_bbox = [-180, -90, 180, 90, "EPSG:4326"]
             gs_resource.latlon_bbox = _native_bbox
             gs_resource.projection = "EPSG:4326"
-            cat.save(gs_resource)
-            logger.debug('BBOX coordinates forced to [-180, -90, 180, 90] for layer '
-                         '[%s].', name)
+            try:
+                cat.save(gs_resource)
+                logger.debug('BBOX coordinates forced to [-180, -90, 180, 90] for layer '
+                             '[%s].', name)
+            except BaseException as e:
+                logger.exception('Error occurred while trying to force BBOX on resource', e)
 
     # Step 7. Create the style and assign it to the created resource
-    # FIXME: Put this in gsconfig.py
     logger.info('>>> Step 7. Creating style for [%s]' % name)
     cat.save(gs_resource)
     publishing = cat.get_layer(name) or gs_resource
@@ -242,8 +241,6 @@ def geoserver_upload(
         if style is None:
             try:
                 style = cat.get_style(name, workspace=settings.DEFAULT_WORKSPACE) or cat.get_style(name)
-                overwrite = style or False
-                cat.create_style(name, sld, overwrite=overwrite, raw=True, workspace=settings.DEFAULT_WORKSPACE)
             except BaseException:
                 try:
                     style = cat.get_style(name + '_layer', workspace=settings.DEFAULT_WORKSPACE) or \
@@ -278,9 +275,8 @@ def geoserver_upload(
                 e.args = (msg,)
                 logger.exception(e)
 
-    # Step 10. Create the Django record for the layer
-    logger.info('>>> Step 10. Creating Django record for [%s]', name)
-    # FIXME: Do this inside the layer object
+    # Step 8. Create the Django record for the layer
+    logger.info('>>> Step 8. Creating Django record for [%s]', name)
     alternate = workspace.name + ':' + gs_resource.name
     layer_uuid = str(uuid.uuid1())
 

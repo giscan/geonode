@@ -24,6 +24,7 @@ import json
 import logging
 import traceback
 from lxml import etree
+from defusedxml import lxml as dlxml
 from os.path import isfile
 
 from urlparse import urlsplit, urljoin
@@ -42,7 +43,6 @@ from django.utils.datastructures import MultiValueDictKeyError
 from django.utils.translation import ugettext as _
 
 from guardian.shortcuts import get_objects_for_user
-from .utils import requests_retry
 from geonode.base.models import ResourceBase
 from geonode.base.auth import get_or_create_token
 from geonode.layers.forms import LayerStyleUploadForm
@@ -52,7 +52,7 @@ from geonode.maps.models import Map
 from geonode.proxy.views import proxy
 from geonode.geoserver.signals import gs_catalog
 from .tasks import geoserver_update_layers
-from geonode.utils import json_response, _get_basic_auth_info
+from geonode.utils import json_response, _get_basic_auth_info, http_client
 from geoserver.catalog import FailedRequestError
 from .helpers import (get_stores,
                       ogc_server_settings,
@@ -199,7 +199,6 @@ def layer_style_manage(request, layername):
             cat = gs_catalog
 
             # First update the layer style info from GS to GeoNode's DB
-            # The try/except is
             try:
                 set_styles(layer, cat)
             except AttributeError:
@@ -207,24 +206,10 @@ def layer_style_manage(request, layername):
                     'Unable to set the default style.  Ensure Geoserver is running and that this layer exists.')
 
             gs_styles = []
-            for style in Style.objects.all():
-                sld_title = style.name
-                if style.sld_title:
-                    sld_title = style.sld_title
-                try:
-                    gs_sld = cat.get_style(style.name,
-                                           workspace=layer.workspace) or cat.get_style(style.name)
-                    # Temporary Hack to remove GeoServer temp styles from the list
-                    _match = re.match(r'\w{8}-\w{4}-\w{4}-\w{4}-\w{12}_(ms)_\d{13}', gs_sld.name)
-                    if gs_sld and not _match:
-                        sld_title = gs_sld.sld_title
-                        gs_styles.append((style.name, sld_title))
-                    else:
-                        style.delete()
-                except BaseException:
-                    tb = traceback.format_exc()
-                    logger.debug(tb)
-
+            # Temporary Hack to remove GeoServer temp styles from the list
+            Style.objects.filter(name__iregex=r'\w{8}-\w{4}-\w{4}-\w{4}-\w{12}_(ms)_\d{13}').delete()
+            for style in Style.objects.values('name', 'sld_title'):
+                gs_styles.append((style['name'], style['sld_title']))
             current_layer_styles = layer.styles.all()
             layer_styles = []
             for style in current_layer_styles:
@@ -688,9 +673,9 @@ def get_layer_capabilities(layer, version='1.3.0', access_token=None, tolerant=F
         wms_url = '%s?service=wms&version=%s&request=GetCapabilities'\
             % (layer.remote_service.service_url, version)
 
-    session = requests_retry()
-    req = session.get(wms_url)
-    getcap = req.content
+    _user, _password = ogc_server_settings.credentials
+    req, content = http_client.get(wms_url, user=_user)
+    getcap = content
     if not getattr(settings, 'DELAYED_SECURITY_SIGNALS', False):
         if tolerant and ('ServiceException' in getcap or req.status_code == 404):
             # WARNING Please make sure to have enabled DJANGO CACHE as per
@@ -699,8 +684,8 @@ def get_layer_capabilities(layer, version='1.3.0', access_token=None, tolerant=F
                 % (ogc_server_settings.public_url, workspace, version, layer)
             if access_token:
                 wms_url += ('&access_token=%s' % access_token)
-            req = session.get(wms_url)
-            getcap = req.content
+            req, content = http_client.get(wms_url, user=_user)
+            getcap = content
 
     if 'ServiceException' in getcap or req.status_code == 404:
         return None
@@ -776,7 +761,7 @@ def get_capabilities(request, layerid=None, user=None,
                         namespaces = {'wms': 'http://www.opengis.net/wms',
                                       'xlink': 'http://www.w3.org/1999/xlink',
                                       'xsi': 'http://www.w3.org/2001/XMLSchema-instance'}
-                        layercap = etree.fromstring(layercap)
+                        layercap = dlxml.fromstring(layercap)
                         rootdoc = etree.ElementTree(layercap)
                         format_online_resource(workspace, layername, rootdoc, namespaces)
                         service_name = rootdoc.find('.//wms:Service/wms:Name', namespaces)

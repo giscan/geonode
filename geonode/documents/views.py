@@ -21,6 +21,7 @@
 import os
 import json
 import logging
+import traceback
 from itertools import chain
 
 from guardian.shortcuts import get_perms
@@ -43,8 +44,10 @@ from django.forms.utils import ErrorList
 from geonode.utils import resolve_object
 from geonode.security.views import _perms_info_json
 from geonode.people.forms import ProfileForm
-from geonode.base.forms import CategoryForm
-from geonode.base.models import TopicCategory
+from geonode.base.forms import CategoryForm, TKeywordForm
+from geonode.base.models import (
+    Thesaurus,
+    TopicCategory)
 from geonode.documents.models import Document, get_related_resources
 from geonode.documents.forms import DocumentForm, DocumentCreateForm, DocumentReplaceForm
 from geonode.documents.models import IMGTYPES
@@ -52,6 +55,8 @@ from geonode.documents.renderers import generate_thumbnail_content, MissingPILEr
 from geonode.utils import build_social_links
 from geonode.groups.models import GroupProfile
 from geonode.base.views import batch_modify
+from geonode.monitoring import register_event
+from geonode.monitoring.models import EventType
 
 logger = logging.getLogger("geonode.documents.views")
 
@@ -153,6 +158,8 @@ def document_detail(request, docid):
                 from geonode.favorite.utils import get_favorite_info
                 context_dict["favorite_info"] = get_favorite_info(request.user, document)
 
+        register_event(request, EventType.EVENT_VIEW, document)
+
         return render(
             request,
             "documents/document_detail.html",
@@ -162,10 +169,6 @@ def document_detail(request, docid):
 def document_download(request, docid):
     document = get_object_or_404(Document, pk=docid)
 
-    if settings.MONITORING_ENABLED and document:
-        if hasattr(document, 'alternate'):
-            request.add_resource('document', document.alternate)
-
     if not request.user.has_perm(
             'base.download_resourcebase',
             obj=document.get_self_resource()):
@@ -173,6 +176,7 @@ def document_download(request, docid):
             loader.render_to_string(
                 '401.html', context={
                     'error_message': _("You are not allowed to view this document.")}, request=request), status=401)
+    register_event(request, EventType.EVENT_DOWNLOAD, document)
     return DownloadResponse(document.doc_file)
 
 
@@ -262,9 +266,16 @@ class DocumentUploadView(CreateView):
                 bbox_y0=bbox_y0,
                 bbox_y1=bbox_y1)
 
-        if getattr(settings, 'MONITORING_ENABLED', False) and self.object:
-            if hasattr(self.object, 'alternate'):
-                self.request.add_resource('document', self.object.alternate)
+        if getattr(settings, 'SLACK_ENABLED', False):
+            try:
+                from geonode.contrib.slack.utils import build_slack_message_document, send_slack_message
+                send_slack_message(
+                    build_slack_message_document(
+                        "document_new", self.object))
+            except BaseException:
+                print "Could not send slack message for new document."
+
+        register_event(self.request, EventType.EVENT_UPLOAD, self.object)
 
         if self.request.GET.get('no__redirect', False):
             out['success'] = True
@@ -307,9 +318,7 @@ class DocumentUpdateView(UpdateView):
         If the form is valid, save the associated model.
         """
         self.object = form.save()
-        if settings.MONITORING_ENABLED and self.object:
-            if hasattr(self.object, 'alternate'):
-                self.request.add_resource('document', self.object.alternate)
+        register_event(self.request, EventType.EVENT_CHANGE, self.object)
         return HttpResponseRedirect(
             reverse(
                 'document_metadata',
@@ -365,11 +374,41 @@ def document_metadata(
             category_form = CategoryForm(request.POST, prefix="category_choice_field", initial=int(
                 request.POST["category_choice_field"]) if "category_choice_field" in request.POST and
                 request.POST["category_choice_field"] else None)
+            tkeywords_form = TKeywordForm(
+                prefix="tkeywords",
+                initial={'tkeywords': request.POST.getlist('tkeywords-tkeywords')})
         else:
             document_form = DocumentForm(instance=document, prefix="resource")
             category_form = CategoryForm(
                 prefix="category_choice_field",
                 initial=topic_category.id if topic_category else None)
+
+            # Keywords from THESAURUS management
+            doc_tkeywords = document.tkeywords.all()
+            tkeywords_list = ''
+            lang = 'en'  # TODO: use user's language
+            if doc_tkeywords and len(doc_tkeywords) > 0:
+                tkeywords_ids = doc_tkeywords.values_list('id', flat=True)
+                if hasattr(settings, 'THESAURUS') and settings.THESAURUS:
+                    el = settings.THESAURUS
+                    thesaurus_name = el['name']
+                    try:
+                        t = Thesaurus.objects.get(identifier=thesaurus_name)
+                        for tk in t.thesaurus.filter(pk__in=tkeywords_ids):
+                            tkl = tk.keyword.filter(lang=lang)
+                            if len(tkl) > 0:
+                                tkl_ids = ",".join(
+                                    map(str, tkl.values_list('id', flat=True)))
+                                tkeywords_list += "," + \
+                                    tkl_ids if len(
+                                        tkeywords_list) > 0 else tkl_ids
+                    except BaseException:
+                        tb = traceback.format_exc()
+                        logger.error(tb)
+
+            tkeywords_form = TKeywordForm(
+                prefix="tkeywords",
+                initial={'tkeywords': tkeywords_list})
 
         if request.method == "POST" and document_form.is_valid(
         ) and category_form.is_valid():
@@ -424,16 +463,15 @@ def document_metadata(
             if new_poc is not None and new_author is not None:
                 document.poc = new_poc
                 document.metadata_author = new_author
-            if new_keywords:
-                document.keywords.clear()
-                document.keywords.add(*new_keywords)
-            if new_regions:
-                document.regions.clear()
-                document.regions.add(*new_regions)
+            document.keywords.clear()
+            document.keywords.add(*new_keywords)
+            document.regions.clear()
+            document.regions.add(*new_regions)
             document.category = new_category
             document.save()
             document_form.save_many2many()
 
+            register_event(request, EventType.EVENT_CHANGE_METADATA, document)
             if not ajax:
                 return HttpResponseRedirect(
                     reverse(
@@ -444,6 +482,38 @@ def document_metadata(
 
             message = document.id
 
+            try:
+                # Keywords from THESAURUS management
+                tkeywords_to_add = []
+                tkeywords_cleaned = tkeywords_form.clean()
+                if tkeywords_cleaned and len(tkeywords_cleaned) > 0:
+                    tkeywords_ids = []
+                    for i, val in enumerate(tkeywords_cleaned):
+                        try:
+                            cleaned_data = [value for key, value in tkeywords_cleaned[i].items(
+                            ) if 'tkeywords' in key.lower() and 'autocomplete' not in key.lower()]
+                            tkeywords_ids.extend(map(int, cleaned_data[0]))
+                        except BaseException:
+                            pass
+
+                    if hasattr(settings, 'THESAURUS') and settings.THESAURUS:
+                        el = settings.THESAURUS
+                        thesaurus_name = el['name']
+                        try:
+                            t = Thesaurus.objects.get(
+                                identifier=thesaurus_name)
+                            for tk in t.thesaurus.all():
+                                tkl = tk.keyword.filter(pk__in=tkeywords_ids)
+                                if len(tkl) > 0:
+                                    tkeywords_to_add.append(tkl[0].keyword_id)
+                            document.tkeywords.clear()
+                            document.tkeywords.add(*tkeywords_to_add)
+                        except BaseException:
+                            tb = traceback.format_exc()
+                            logger.error(tb)
+            except BaseException:
+                tb = traceback.format_exc()
+                logger.error(tb)
             return HttpResponse(json.dumps({'message': message}))
 
         # - POST Request Ends here -
@@ -490,6 +560,7 @@ def document_metadata(
                     document_form.fields['is_approved'].widget.attrs.update(
                         {'disabled': 'true'})
 
+        register_event(request, EventType.EVENT_VIEW_METADATA, document)
         return render(request, template, context={
             "resource": document,
             "document": document,
@@ -497,6 +568,7 @@ def document_metadata(
             "poc_form": poc_form,
             "author_form": author_form,
             "category_form": category_form,
+            "tkeywords_form": tkeywords_form,
             "metadata_author_groups": metadata_author_groups,
             "TOPICCATEGORY_MANDATORY": getattr(settings, 'TOPICCATEGORY_MANDATORY', False),
             "GROUP_MANDATORY_RESOURCES": getattr(settings, 'GROUP_MANDATORY_RESOURCES', False),
@@ -625,6 +697,7 @@ def document_remove(request, docid, template='documents/document_remove.html'):
         if request.method == 'POST':
             document.delete()
 
+            register_event(request, EventType.EVENT_REMOVE, document)
             return HttpResponseRedirect(reverse("document_browse"))
         else:
             return HttpResponse("Not allowed", status=403)
@@ -653,6 +726,7 @@ def document_metadata_detail(
         except GroupProfile.DoesNotExist:
             group = None
     site_url = settings.SITEURL.rstrip('/') if settings.SITEURL.startswith('http') else settings.SITEURL
+    register_event(request, EventType.EVENT_VIEW_METADATA, document)
     return render(request, template, context={
         "resource": document,
         "group": group,

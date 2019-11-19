@@ -41,12 +41,15 @@ from django.core.files.storage import default_storage as storage
 from django.core.files.base import ContentFile
 from django.contrib.gis.geos import GEOSGeometry
 from django.utils.timezone import now
+from django.utils.html import escape
 
 from mptt.models import MPTTModel, TreeForeignKey
 
 from polymorphic.models import PolymorphicModel
 from polymorphic.managers import PolymorphicManager
 from agon_ratings.models import OverallRating
+from imagekit.models import ImageSpecField
+from imagekit.processors import ResizeToFill
 
 from geonode.base.enumerations import ALL_LANGUAGES, \
     HIERARCHY_LEVELS, UPDATE_FREQUENCIES, \
@@ -381,6 +384,7 @@ class _HierarchicalTagManager(_TaggableManager):
         tag_objs.update(existing)
         for new_tag in str_tags - set(t.name for t in existing):
             if new_tag:
+                new_tag = escape(new_tag)
                 tag_objs.add(HierarchicalKeyword.add_root(name=new_tag))
 
         for tag in tag_objs:
@@ -418,30 +422,6 @@ class Thesaurus(models.Model):
         verbose_name_plural = 'Thesauri'
 
 
-class ThesaurusKeyword(models.Model):
-    """
-    Loadable thesaurus containing keywords in different languages
-    """
-    # read from the RDF file
-    about = models.CharField(max_length=255, null=True, blank=True)
-    # read from the RDF file
-    alt_label = models.CharField(
-        max_length=255,
-        default='',
-        null=True,
-        blank=True)
-
-    thesaurus = models.ForeignKey('Thesaurus', related_name='thesaurus')
-
-    def __unicode__(self):
-        return u"{0}".format(self.alt_label)
-
-    class Meta:
-        ordering = ("alt_label",)
-        verbose_name_plural = 'Thesaurus Keywords'
-        unique_together = (("thesaurus", "alt_label"),)
-
-
 class ThesaurusKeywordLabel(models.Model):
     """
     Loadable thesaurus containing keywords in different languages
@@ -462,6 +442,34 @@ class ThesaurusKeywordLabel(models.Model):
         ordering = ("keyword", "lang")
         verbose_name_plural = 'Labels'
         unique_together = (("keyword", "lang"),)
+
+
+class ThesaurusKeyword(models.Model):
+    """
+    Loadable thesaurus containing keywords in different languages
+    """
+    # read from the RDF file
+    about = models.CharField(max_length=255, null=True, blank=True)
+    # read from the RDF file
+    alt_label = models.CharField(
+        max_length=255,
+        default='',
+        null=True,
+        blank=True)
+
+    thesaurus = models.ForeignKey('Thesaurus', related_name='thesaurus')
+
+    def __unicode__(self):
+        return u"{0}".format(self.alt_label)
+
+    @property
+    def labels(self):
+        return ThesaurusKeywordLabel.objects.filter(keyword=self)
+
+    class Meta:
+        ordering = ("alt_label",)
+        verbose_name_plural = 'Thesaurus Keywords'
+        unique_together = (("thesaurus", "alt_label"),)
 
 
 class ResourceBaseManager(PolymorphicManager):
@@ -753,6 +761,9 @@ class ResourceBase(PolymorphicModel, PermissionLevelMixin, ItemBase):
     detail_url = models.CharField(max_length=255, null=True, blank=True)
     rating = models.IntegerField(default=0, null=True, blank=True)
 
+    created = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
     def __unicode__(self):
         return u"{0}".format(self.title)
 
@@ -934,10 +945,13 @@ class ResourceBase(PolymorphicModel, PermissionLevelMixin, ItemBase):
 
     @property
     def keyword_csv(self):
-        keywords_qs = self.get_real_instance().keywords.all()
-        if keywords_qs:
-            return ','.join([kw.name for kw in keywords_qs])
-        else:
+        try:
+            keywords_qs = self.get_real_instance().keywords.all()
+            if keywords_qs:
+                return ','.join([kw.name for kw in keywords_qs])
+            else:
+                return ''
+        except BaseException:
             return ''
 
     def set_bounds_from_center_and_zoom(self, center_x, center_y, zoom):
@@ -1093,12 +1107,12 @@ class ResourceBase(PolymorphicModel, PermissionLevelMixin, ItemBase):
 
         if legend.count() > 0:
             if not style_name:
-                return legend[0].url
+                return legend.first().url
             else:
                 for _legend in legend:
                     if style_name in _legend.url:
                         return _legend.url
-        return legend.url
+        return None
 
     def get_ows_url(self):
         """Return URL for OGC WMS server None if it does not exist.
@@ -1345,6 +1359,9 @@ class MenuPlaceholder(models.Model):
         unique=True
     )
 
+    def __unicode__(self):
+        return u"{0}".format(self.name)
+
     def __str__(self):
         return self.name
 
@@ -1364,6 +1381,9 @@ class Menu(models.Model):
     order = models.IntegerField(
         null=False,
     )
+
+    def __unicode__(self):
+        return u"{0}".format(self.title)
 
     def __str__(self):
         return self.title
@@ -1398,6 +1418,9 @@ class MenuItem(models.Model):
         blank=False
     )
 
+    def __unicode__(self):
+        return u"{0}".format(self.title)
+
     def __str__(self):
         return self.title
 
@@ -1409,20 +1432,21 @@ class MenuItem(models.Model):
         ordering = ['order']
 
 
+class CuratedThumbnail(models.Model):
+    resource = models.OneToOneField(ResourceBase)
+    img = models.ImageField(upload_to='curated_thumbs')
+    # TOD read thumb size from settings
+    img_thumbnail = ImageSpecField(source='img',
+                                   processors=[ResizeToFill(240, 180)],
+                                   format='PNG',
+                                   options={'quality': 60})
+
+
 def resourcebase_post_save(instance, *args, **kwargs):
     """
     Used to fill any additional fields after the save.
     Has to be called by the children
     """
-    # we need to remove stale links
-    for link in instance.link_set.all():
-        if link.name == "External Document":
-            if link.resource.doc_url != link.url:
-                link.delete()
-        else:
-            if urlsplit(settings.SITEURL).hostname not in link.url:
-                link.delete()
-
     try:
         # set default License if no specified
         if instance.license is None:

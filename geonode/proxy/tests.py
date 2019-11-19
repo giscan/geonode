@@ -26,13 +26,18 @@ Replace these with more appropriate tests for your application.
 """
 import json
 
-from geonode.base.models import Link
-from geonode.tests.base import GeoNodeBaseTestSupport
-from geonode.base.populate_test_data import create_models
+from mock import MagicMock
 
+from django.core.urlresolvers import reverse
 from django.contrib.auth import get_user_model
 from django.test.utils import override_settings
 
+from geonode import geoserver
+from geonode.base.models import Link
+from geonode.layers.models import Layer
+from geonode.decorators import on_ogc_backend
+from geonode.tests.base import GeoNodeBaseTestSupport
+from geonode.base.populate_test_data import create_models
 
 TEST_DOMAIN = '.github.com'
 TEST_URL = 'https://help%s/' % TEST_DOMAIN
@@ -93,6 +98,46 @@ class ProxyTest(GeoNodeBaseTestSupport):
             '%s?url=%s' % (self.proxy_url, 'http://bogus.pocus.com/ows/wms?request=GetCapabilities'))
         # 200 - FOUND
         self.assertTrue(response.status_code in (200, 301))
+
+    @override_settings(DEBUG=False, PROXY_ALLOWED_HOSTS=('.example.org',))
+    def test_relative_urls(self):
+        """Proxying to a URL with a relative path element should normalise the path into
+        an absolute path before calling the remote URL."""
+        import geonode.proxy.views
+
+        class Response(object):
+            status_code = 200
+            content = 'Hello World'
+            headers = {'Content-Type': 'text/html'}
+
+        request_mock = MagicMock()
+        request_mock.return_value = (Response(), None)
+
+        geonode.proxy.views.http_client.request = request_mock
+        url = "http://example.org/test/test/../../index.html"
+
+        self.client.get('%s?url=%s' % (self.proxy_url, url))
+        assert request_mock.assert_called_once
+        assert request_mock.call_args[0][0] == 'http://example.org/index.html'
+
+
+class DownloadResourceTestCase(GeoNodeBaseTestSupport):
+
+    def setUp(self):
+        super(DownloadResourceTestCase, self).setUp()
+        create_models(type='layer')
+
+    @on_ogc_backend(geoserver.BACKEND_PACKAGE)
+    def test_download_url(self):
+        layer = Layer.objects.all().first()
+        self.client.login(username='admin', password='admin')
+        # ... all should be good
+        response = self.client.get(reverse('download', args=(layer.id,)))
+        # Espected 404 since there are no files available for this layer
+        self.failUnlessEqual(response.status_code, 404)
+        data = response.content
+        self.assertTrue(
+            "No files have been found for this resource. Please, contact a system administrator." in data)
 
 
 class OWSApiTestCase(GeoNodeBaseTestSupport):

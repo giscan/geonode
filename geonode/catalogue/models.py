@@ -24,6 +24,7 @@ import logging
 from django.conf import settings
 from django.db.models import signals
 from lxml import etree
+from defusedxml import lxml as dlxml
 from geonode.layers.models import Layer
 from geonode.documents.models import Document
 from geonode.catalogue import get_catalogue
@@ -66,26 +67,38 @@ def catalogue_post_save(instance, sender, **kwargs):
             else:
                 raise err
 
-        msg = ('Metadata record for %s does not exist,'
-               ' check the catalogue signals.' % instance.title)
-        assert record is not None, msg
+        if not record:
+            msg = ('Metadata record for %s does not exist,'
+                   ' check the catalogue signals.' % instance.title)
+            raise Exception(msg)
 
-        msg = ('Metadata record for %s should contain links.' % instance.title)
-        assert hasattr(record, 'links'), msg
+        if not hasattr(record, 'links'):
+            msg = ('Metadata record for %s should contain links.' % instance.title)
+            raise Exception(msg)
 
         # Create the different metadata links with the available formats
         for mime, name, metadata_url in record.links['metadata']:
-            Link.objects.get_or_create(resource=instance.resourcebase_ptr,
-                                       url=metadata_url,
-                                       defaults=dict(name=name,
-                                                     extension='xml',
-                                                     mime=mime,
-                                                     link_type='metadata')
-                                       )
+            try:
+                Link.objects.get_or_create(resource=instance.resourcebase_ptr,
+                                           url=metadata_url,
+                                           defaults=dict(name=name,
+                                                         extension='xml',
+                                                         mime=mime,
+                                                         link_type='metadata')
+                                           )
+            except BaseException:
+                _d = dict(name=name,
+                          extension='xml',
+                          mime=mime,
+                          link_type='metadata')
+                Link.objects.filter(resource=instance.resourcebase_ptr,
+                                    url=metadata_url,
+                                    extension='xml',
+                                    link_type='metadata').update(**_d)
 
         # generate an XML document (GeoNode's default is ISO)
         if instance.metadata_uploaded and instance.metadata_uploaded_preserve:
-            md_doc = etree.tostring(etree.fromstring(instance.metadata_xml))
+            md_doc = etree.tostring(dlxml.fromstring(instance.metadata_xml))
         else:
             md_doc = catalogue.catalogue.csw_gen_xml(instance, 'catalogue/full_metadata.xml')
 
@@ -98,6 +111,8 @@ def catalogue_post_save(instance, sender, **kwargs):
         resources.update(metadata_xml=md_doc)
         resources.update(csw_wkt_geometry=csw_wkt_geometry)
         resources.update(csw_anytext=csw_anytext)
+    except BaseException as e:
+        LOGGER.debug(e)
     finally:
         # Revert temporarily changed publishing state
         if not is_published:

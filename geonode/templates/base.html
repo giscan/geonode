@@ -38,15 +38,18 @@
     <link rel="shortcut icon" href="{% static 'geonode/img/favicon.ico' %}" />
 
     {% block head %}
+
       {% if DEBUG_STATIC %}
           <link href="{% static "lib/css/jquery.dataTables.css" %}?v={{ VERSION }}" rel="stylesheet" />
           <link href="{% static "lib/css/select2.css" %}?v={{ VERSION }}" rel="stylesheet"/>
-          <link href="{% static "lib/css/bootstrap.min.css" %}?v={{ VERSION }}" rel="stylesheet"/>
-          <link href="{% static "lib/css/jquery-ui.css" %}?v={{ VERSION }}" rel="stylesheet"/>
+          <link href="{% static "lib/css/bootstrap.css" %}?v={{ VERSION }}" rel="stylesheet"/>
+          <link href="{% static "lib/css/bootstrap-treeview.css" %}?v={{ VERSION }}" rel="stylesheet"/>
+          <link href="{% static "lib/css/jquery-ui.theme.css" %}?v={{ VERSION }}" rel="stylesheet"/>
+          <link href="{% static "lib/css/jquery-ui.structure.css" %}?v={{ VERSION }}" rel="stylesheet"/>
+          <link href="{% static "lib/css/bootstrap-treeview.css" %}?v={{ VERSION }}" rel="stylesheet"/>
       {% else %}
         <link href="{% static "lib/css/assets.min.css" %}?v={{ VERSION }}" rel="stylesheet"/>
       {% endif %}
-
       <link href="{% static "geonode/css/ext-compatibility.css" %}?v={{ VERSION }}" rel="stylesheet" />
       <link href="{% static "geonode/css/ux-all.css" %}?v={{ VERSION }}" rel="stylesheet" />
       <link href="{% static "geonode/css/base.css" %}?v={{ VERSION }}" rel="stylesheet" />
@@ -203,6 +206,21 @@
 
     <script>
         var siteUrl = '{{ SITEURL }}'.replace(/\/?$/, '/');
+        var staticUrl = '{% static '' %}';
+    </script>
+
+    <script type="text/javascript">
+      function thumbnailFeedbacks(data, status) {
+        try {
+          $("#_thumbnail_feedbacks").find('.modal-title').text(status);
+          $("#_thumbnail_feedbacks").find('.modal-body').text(data);
+          $("#_thumbnail_feedbacks").modal("show");
+        } catch (err) {
+          console.log(err);
+        } finally {
+          return true;
+        }
+      }
     </script>
 
   </head>
@@ -331,7 +349,7 @@
                     {% endif %}
                     {% if USE_MONITORING %}
                     <li role="separator" class="divider"></li>
-                    <li><a href="{% url "monitoring:index" %}">{% trans "Monitoring" %}</a></li>
+                    <li><a href="{% url "monitoring:index" %}">{% trans "Monitoring & Analytics" %}</a></li>
                     {% endif %}
                 {% endif %}
                 <li role="separator" class="divider"></li>
@@ -516,11 +534,14 @@
               </div>
               <div class="form-group">
                 <label for="id_password" class="sr-only">{% trans "Password" %}:</label>
-                <input id="id_password" class="form-control" name="password" placeholder="{% trans "Password" %}" type="password" />
+                <input id="id_password" class="form-control" name="password" placeholder="{% trans "Password" %}" type="password" autocomplete="off" />
               </div>
               <label class="checkbox">
                 <input type="checkbox" /> {% trans "Remember Me" %}
               </label>
+              <p>
+                <a href="{% url 'account_reset_password' %}">{% trans "Forgot Password?" %}</a>
+              </p>
             </div>
             <div class="modal-footer">
               <button type="submit" class="btn btn-primary btn-block">{% trans "Sign in" %}</button>
@@ -533,18 +554,20 @@
     <!-- End of Modal -->
 
     {% if DEBUG_STATIC %}
-    <script src="{% static "lib/js/jquery.min.js" %}?v={{ VERSION }}"></script>
+    <script src="{% static "lib/js/jquery.js" %}?v={{ VERSION }}"></script>
     <script src="{% static "lib/js/jquery.dataTables.js" %}?v={{ VERSION }}"></script>
+    <script src="{% static "lib/js/bootstrap-treeview.js" %}?v={{ VERSION }}"></script>
+    <script src="{% static "lib/js/bootstrap-tokenfield.js" %}?v={{ VERSION }}"></script>
+    <script src="{% static "lib/js/fastselect.standalone.js" %}?v={{ VERSION }}"></script>
+    <script src="{% static "lib/js/select2.full.js" %}?v={{ VERSION }}"></script>
     <script src="{% static "lib/js/jquery.timeago.js" %}?v={{ VERSION }}"></script>
-    <script src="{% static "lib/js/jquery.ajaxprogress.js" %}?v={{ VERSION }}"></script>
-    <script src="{% static "lib/js/jquery.ajaxQueue.js" %}?v={{ VERSION }}"></script>
-    <script src="{% static "lib/js/jquery-ui.custom.js" %}?v={{ VERSION }}"></script>
+    <script src="{% static "lib/js/jq-ajax-progress.js" %}?v={{ VERSION }}"></script>
+    <script src="{% static "lib/js/jquery-ui.js" %}?v={{ VERSION }}"></script>
     <script src="{% static "lib/js/jquery.raty.js" %}?v={{ VERSION }}"></script>
-    <script src="{% static "lib/js/bootstrap.min.js" %}?v={{ VERSION }}"></script>
-    <script src="{% static "lib/js/moment-with-locales.min.js" %}?v={{ VERSION }}"></script>
-    <script src="{% static "lib/js/bootstrap-datetimepicker.min.js" %}?v={{ VERSION }}"></script>
+    <script src="{% static "lib/js/bootstrap.js" %}?v={{ VERSION }}"></script>
+    <script src="{% static "lib/js/moment-with-locales.js" %}?v={{ VERSION }}"></script>
+    <script src="{% static "lib/js/bootstrap-datetimepicker.js" %}?v={{ VERSION }}"></script>
     <script src="{% static "lib/js/json2.js" %}?v={{ VERSION }}"></script>
-    <script src="{% static "lib/js/select2.js" %}?v={{ VERSION }}"></script>
     <script src="{% static "lib/js/waypoints.js" %}?v={{ VERSION }}"></script>
     {% else %}
     <script src="{% static "lib/js/assets.min.js" %}?v={{ VERSION }}"></script>
@@ -569,6 +592,9 @@
                 $('#search_input').val($(choice[0]).text());
                 $('#search').submit();
             }
+        });
+        $(".datepicker").datepicker({
+            format: "yyyy-mm-dd"
         });
     </script>
     <script>

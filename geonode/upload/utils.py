@@ -17,22 +17,27 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################
-from itertools import islice
 import re
 import os
 import json
 import logging
 import zipfile
+import tempfile
 import traceback
 
-from lxml import etree
 from osgeo import ogr
+from lxml import etree
+from itertools import islice
+from defusedxml import lxml as dlxml
+
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.translation import ugettext as _
+
 from geoserver.catalog import FailedRequestError, ConflictingDataError
+
 from geonode.upload import UploadException
 from geonode.utils import json_response as do_json_response, unzip_file
 from geonode.geoserver.helpers import (gs_catalog,
@@ -101,10 +106,6 @@ been notified, but if you'd like, please note this error code
 below and details on what you were doing when you encountered this error.
 That information can help us identify the cause of the problem and help us with
 fixing it.  Thank you!
-"""
-
-"""
-    JSON Responses
 """
 
 
@@ -182,7 +183,7 @@ def _byteify(data, ignore_dicts=False):
 
 def get_kml_doc(kml_bytes):
     """Parse and return an etree element with the kml file's content"""
-    kml_doc = etree.fromstring(
+    kml_doc = dlxml.fromstring(
         kml_bytes,
         parser=etree.XMLParser(resolve_entities=False)
     )
@@ -282,6 +283,7 @@ def _advance_step(req, upload_session):
 
 
 def next_step_response(req, upload_session, force_ajax=True):
+    _force_ajax = '&force_ajax=true' if force_ajax and 'force_ajax' not in req.GET else ''
     import_session = upload_session.import_session
     # if the current step is the view POST for this step, advance one
     if req.method == 'POST':
@@ -289,7 +291,9 @@ def next_step_response(req, upload_session, force_ajax=True):
             _advance_step(req, upload_session)
         else:
             upload_session.completed_step = 'save'
+
     next = get_next_step(upload_session)
+
     if next == 'error':
         return json_response(
             {'status': 'error',
@@ -302,17 +306,17 @@ def next_step_response(req, upload_session, force_ajax=True):
     if next == 'check':
         # @TODO we skip time steps for coverages currently
         store_type = import_session.tasks[0].target.store_type
-        if store_type == 'coverageStore':
+        if store_type == 'coverageStore' or _force_ajax:
             upload_session.completed_step = 'check'
-            return next_step_response(req, upload_session, force_ajax)
+            return next_step_response(req, upload_session, force_ajax=True)
     if next == 'check' and force_ajax:
-        url = reverse('data_upload') + "?id=%s" % import_session.id
+        url = reverse('data_upload') + "?id=%s" % (import_session.id)
         return json_response(
             {'url': url,
              'status': 'incomplete',
              'success': True,
              'id': import_session.id,
-             'redirect_to': settings.SITEURL + 'upload/check' + "?id=%s" % import_session.id,
+             'redirect_to': settings.SITEURL + 'upload/check' + "?id=%s%s" % (import_session.id, _force_ajax),
              }
         )
 
@@ -331,46 +335,46 @@ def next_step_response(req, upload_session, force_ajax=True):
         upload_session.completed_step = 'time'
         return next_step_response(req, upload_session, force_ajax)
     if next == 'time' and force_ajax:
-        url = reverse('data_upload') + "?id=%s" % import_session.id
+        url = reverse('data_upload') + "?id=%s" % (import_session.id)
         return json_response(
             {'url': url,
              'status': 'incomplete',
              'success': True,
              'id': import_session.id,
-             'redirect_to': settings.SITEURL + 'upload/time' + "?id=%s" % import_session.id,
+             'redirect_to': settings.SITEURL + 'upload/time' + "?id=%s%s" % (import_session.id, _force_ajax),
              }
         )
 
     if next == 'mosaic' and force_ajax:
-        url = reverse('data_upload') + "?id=%s" % import_session.id
+        url = reverse('data_upload') + "?id=%s" % (import_session.id)
         return json_response(
             {'url': url,
              'status': 'incomplete',
              'success': True,
              'id': import_session.id,
-             'redirect_to': settings.SITEURL + 'upload/mosaic' + "?id=%s" % import_session.id,
+             'redirect_to': settings.SITEURL + 'upload/mosaic' + "?id=%s%s" % (import_session.id, _force_ajax),
              }
         )
 
     if next == 'srs' and force_ajax:
-        url = reverse('data_upload') + "?id=%s" % import_session.id
+        url = reverse('data_upload') + "?id=%s" % (import_session.id)
         return json_response(
             {'url': url,
              'status': 'incomplete',
              'success': True,
              'id': import_session.id,
-             'redirect_to': settings.SITEURL + 'upload/srs' + "?id=%s" % import_session.id,
+             'redirect_to': settings.SITEURL + 'upload/srs' + "?id=%s%s" % (import_session.id, _force_ajax),
              }
         )
 
     if next == 'csv' and force_ajax:
-        url = reverse('data_upload') + "?id=%s" % import_session.id
+        url = reverse('data_upload') + "?id=%s" % (import_session.id)
         return json_response(
             {'url': url,
              'status': 'incomplete',
              'success': True,
              'id': import_session.id,
-             'redirect_to': settings.SITEURL + 'upload/csv' + "?id=%s" % import_session.id,
+             'redirect_to': settings.SITEURL + 'upload/csv' + "?id=%s%s" % (import_session.id, _force_ajax),
              }
         )
 
@@ -387,9 +391,9 @@ def next_step_response(req, upload_session, force_ajax=True):
                                       force_ajax=force_ajax)
     session_id = None
     if 'id' in req.GET:
-        session_id = "?id=%s" % req.GET['id']
+        session_id = "?id=%s" % (req.GET['id'])
     elif import_session and import_session.id:
-        session_id = "?id=%s" % import_session.id
+        session_id = "?id=%s" % (import_session.id)
 
     if req.is_ajax() or force_ajax:
         content_type = 'text/html' if not req.is_ajax() else None
@@ -501,24 +505,34 @@ def _get_time_dimensions(layer, upload_session):
     return att_list
 
 
+def _fixup_base_file(absolute_base_file, tempdir=None):
+    if not tempdir:
+        tempdir = tempfile.mkdtemp()
+    if not os.path.isfile(absolute_base_file):
+        tmp_files = [f for f in os.listdir(tempdir) if os.path.isfile(os.path.join(tempdir, f))]
+        for f in tmp_files:
+            if zipfile.is_zipfile(os.path.join(tempdir, f)):
+                absolute_base_file = unzip_file(os.path.join(tempdir, f), '.shp', tempdir=tempdir)
+                absolute_base_file = os.path.join(tempdir,
+                                                  absolute_base_file)
+    elif zipfile.is_zipfile(absolute_base_file):
+        absolute_base_file = unzip_file(absolute_base_file,
+                                        '.shp', tempdir=tempdir)
+        absolute_base_file = os.path.join(tempdir,
+                                          absolute_base_file)
+    if os.path.exists(absolute_base_file):
+        return absolute_base_file
+    else:
+        raise Exception(_('File does not exist: %s' % absolute_base_file))
+
+
 def _get_layer_values(layer, upload_session, expand=0):
     layer_values = []
     if upload_session:
-        absolute_base_file = upload_session.base_file[0].base_file
-        tempdir = upload_session.tempdir
+        absolute_base_file = _fixup_base_file(
+            upload_session.base_file[0].base_file,
+            upload_session.tempdir)
 
-        if not os.path.isfile(absolute_base_file):
-            tmp_files = [f for f in os.listdir(tempdir) if os.path.isfile(os.path.join(tempdir, f))]
-            for f in tmp_files:
-                if zipfile.is_zipfile(os.path.join(tempdir, f)):
-                    absolute_base_file = unzip_file(os.path.join(tempdir, f), '.shp', tempdir=tempdir)
-                    absolute_base_file = os.path.join(tempdir,
-                                                      absolute_base_file)
-        elif zipfile.is_zipfile(absolute_base_file):
-            absolute_base_file = unzip_file(upload_session.base_file[0].base_file,
-                                            '.shp', tempdir=tempdir)
-            absolute_base_file = os.path.join(tempdir,
-                                              absolute_base_file)
         inDataSource = ogr.Open(absolute_base_file)
         lyr = inDataSource.GetLayer(str(layer.name))
         limit = 100

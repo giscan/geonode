@@ -21,12 +21,17 @@
 
 # Geonode functionality
 from django.shortcuts import render
+from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.core.exceptions import PermissionDenied
+
 from geonode.documents.models import Document
 from geonode.layers.models import Layer
 from geonode.maps.models import Map
+from geonode.base.models import ResourceBase
+from geonode.utils import resolve_object
 from .forms import BatchEditForm
+from .forms import CuratedThumbnailForm
 
 
 def batch_modify(request, ids, model):
@@ -39,6 +44,12 @@ def batch_modify(request, ids, model):
     if model == 'Map':
         Resource = Map
     template = 'base/batch_edit.html'
+
+    if "cancel" in request.POST:
+        return HttpResponseRedirect(
+            '/admin/{model}s/{model}/'.format(model=model.lower())
+        )
+
     if request.method == 'POST':
         form = BatchEditForm(request.POST)
         if form.is_valid():
@@ -70,6 +81,7 @@ def batch_modify(request, ids, model):
                 'model': model,
             }
         )
+
     form = BatchEditForm()
     return render(
         request,
@@ -80,3 +92,42 @@ def batch_modify(request, ids, model):
             'model': model,
         }
     )
+
+
+def thumbnail_upload(
+        request,
+        res_id,
+        template='base/thumbnail_upload.html'):
+
+    try:
+        res = resolve_object(
+            request, ResourceBase, {
+                'id': res_id}, 'base.change_resourcebase')
+
+    except PermissionDenied:
+        return HttpResponse(
+            'You are not allowed to change permissions for this resource',
+            status=401,
+            content_type='text/plain')
+
+    form = CuratedThumbnailForm()
+
+    if request.method == 'POST':
+        if 'remove-thumb' in request.POST:
+            if hasattr(res, 'curatedthumbnail'):
+                res.curatedthumbnail.delete()
+        else:
+            form = CuratedThumbnailForm(request.POST, request.FILES)
+            if form.is_valid():
+                ct = form.save(commit=False)
+                # remove existing thumbnail if any
+                if hasattr(res, 'curatedthumbnail'):
+                    res.curatedthumbnail.delete()
+                ct.resource = res
+                ct.save()
+        return HttpResponseRedirect(request.path_info)
+
+    return render(request, template, context={
+        'resource': res,
+        'form': form
+    })
